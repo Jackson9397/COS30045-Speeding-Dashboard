@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard • Speeding Enforcement</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="../css/style.css" rel="stylesheet" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v3.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <a href="index.html">
+    <img src="../assets/logo.png" alt="Logo - Home" style="border: none;">
+      </a>
+      <span>Speeding Dashboard</span>
+    </div>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./dashboard.html" class="active">Dashboard</a>
+      <a href="./about.html">About</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="controls card">
+  <div class="control">
+    <label for="jurisdictionSel">Jurisdiction</label>
+    <select id="jurisdictionSel"></select>
+  </div>
+  <div class="control">
+    <label for="yearSel">Year</label>
+    <select id="yearSel"></select>
+  </div>
+  <div class="control">
+    <label for="detectSel">Detection</label>
+    <select id="detectSel"></select>
+  </div>
+  </section>
+
+
+    <section class="grid-2 grid-stack">
+      <article class="card">
+        <h2>National Trend (2008–2024) — Line</h2>
+        <div id="lineChart" class="viz"></div>
+      </article>
+      <article class="card">
+        <h2>Selected Jurisdiction Over Time — Area</h2>
+        <div id="areaChart" class="viz"></div>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Choropleth Map — Fines by Jurisdiction (<span id="mapYearLbl">2024</span>)</h2>
+      <div id="map" class="viz map-viz"></div>
+      <div id="mapLegend" class="legend"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>© 2025 COS30045</span>
+    <span>Data: BITRE 2008–2024</span>
+  </footer>
+
+  <script src="../js/script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+</body>
+</html>

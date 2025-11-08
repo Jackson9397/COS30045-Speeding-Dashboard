@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>COS30045 • Speeding Enforcement Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="../css/style.css" rel="stylesheet" />
+  <link rel="preload" as="image" href="../assets/logo.png">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="../assets/logo.png" alt="Logo" onerror="this.style.display='none'">
+      <span>COS30045 • Speeding (BITRE)</span>
+    </div>
+    <nav class="nav">
+      <a href="./index.html" class="active">Home</a>
+      <a href="./dashboard.html">Dashboard</a>
+      <a href="./about.html">About</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>Road Safety Enforcement — <span class="accent">Speeding</span></h1>
+      <p>Interactive visual analytics of Australian speeding enforcement using
+        BITRE open data (2008–2024). Explore trends, compare jurisdictions, and
+        see where enforcement is most intense.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="./dashboard.html">Open Dashboard</a>
+        <a class="btn ghost" href="./about.html">Meet the Team</a>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <h2>What’s inside</h2>
+        <ul class="tick">
+          <li>National trend <strong>line chart</strong></li>
+          <li>Jurisdiction <strong>area chart</strong></li>
+          <li>Interactive <strong>choropleth map</strong></li>
+          <li>Filters: jurisdiction • year • detection</li>
+          <li>Smooth transitions + tooltips</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Data Source</h2>
+        <p>BITRE Road Safety Enforcement Data (2008–2024).
+          Includes speeding infringements captured via police-issued and camera-issued methods.</p>
+        <p class="small">Source: Department of Infrastructure / BITRE — Road Safety Enforcement Data.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>© 2025 COS30045</span>
+    <span>Built with D3.js</span>
+  </footer>
+</body>
+</html>
