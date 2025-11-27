@@ -24,26 +24,44 @@
   <main class="container">
     <section class="grid-3">
       <article class="card">
-        <h3>Ho Sheng Yang</h3>
-        <p>Group Leader — D3.js implementation & interactivity — charts, map, transitions, and UI polish.</p>
-      </article>
-      <article class="card">
-        <h3>Hu Jia Qi</h3>
-        <p>Data Processing Lead — KNIME pipelines, data cleaning, and derived metrics.</p>
-      </article>
-      <article class="card">
-        <h3>Prince Chikukwa</h3>
-        <p>Design & Docs — Wireframes, colour, report integration.</p>
-      </article>
+  <h3>Ho Sheng Yang</h3>
+  <p>
+    Group Leader — Responsible for full D3.js implementation, chart logic conversion, 
+    interactivity, layout restructuring, and replacing the original multi-filter dashboard with 
+    five question-driven visualisations (bar, column, pie, area, line).  
+    Also handled UI refinement, responsive behaviour, testing, and integration with the final report.
+  </p>
+</article>
+
+<article class="card">
+  <h3>Hu Jia Qi</h3>
+  <p>
+    Data Processing — Prepared the five cleaned CSV datasets (Q1–Q5) through data extraction, 
+    aggregation, validation, and formatting. Ensured each CSV matched the exact structure required 
+    by the updated D3.js dashboard. Also assisted in dataset verification and testing.
+  </p>
+</article>
+
+<article class="card">
+  <h3>Prince Chikukwa</h3>
+  <p>
+    Design & Documentation — Contributed to visual layout decisions, styling consistency, and 
+    report documentation. Assisted in verifying dashboard output accuracy through systematic 
+    testing of all five visualisations.
+  </p>
+</article>
     </section>
 
     <section class="card">
       <h2>Methodology</h2>
-      <ul class="tick">
-        <li>BITRE Police Enforcement data (2008–2024)</li>
-        <li>Filters: jurisdiction, detection method, year</li>
-        <li>Line, area, and choropleth visualisations with transitions</li>
-      </ul>
+<ul class="tick">
+  <li>Derived from BITRE Road Safety Enforcement data (2008–2024), using custom-processed CSV files for each analytical question.</li>
+  <li>Five question-specific datasets were prepared (Q1–Q5), each containing only the fields required for its visualisation.</li>
+  <li>Data cleaning and aggregation performed externally (grouping by year, jurisdiction, age group, and offence type).</li>
+  <li>D3.js used to generate five chart types: bar, column, pie, area, and line charts.</li>
+  <li>Each chart directly answers one analytical question, with tooltips and highlighting for clarity.</li>
+</ul>
+
     </section>
   </main>
 

@@ -2,19 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dashboard • Speeding Enforcement</title>
+  <title>Dashboard • Speeding Enforcement Q&A</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="../css/style.css" rel="stylesheet" />
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://d3js.org/d3-scale-chromatic.v3.min.js"></script>
 </head>
 <body>
   <header class="site-header">
     <div class="brand">
       <a href="index.html">
-    <img src="../assets/logo.png" alt="Logo - Home" style="border: none;">
+        <img src="../assets/logo.png" alt="Logo - Home" style="border: none;">
       </a>
-      <span>Speeding Dashboard</span>
+      <span>Speeding Dashboard — Q&A</span>
     </div>
     <nav class="nav">
       <a href="./index.html">Home</a>
@@ -24,46 +23,55 @@
   </header>
 
   <main class="container">
-    <section class="controls card">
-  <div class="control">
-    <label for="jurisdictionSel">Jurisdiction</label>
-    <select id="jurisdictionSel"></select>
-  </div>
-  <div class="control">
-    <label for="yearSel">Year</label>
-    <select id="yearSel"></select>
-  </div>
-  <div class="control">
-    <label for="detectSel">Detection</label>
-    <select id="detectSel"></select>
-  </div>
-  </section>
 
-
-    <section class="grid-2 grid-stack">
-      <article class="card">
-        <h2>National Trend (2008–2024) — Line</h2>
-        <div id="lineChart" class="viz"></div>
-      </article>
-      <article class="card">
-        <h2>Selected Jurisdiction Over Time — Area</h2>
-        <div id="areaChart" class="viz"></div>
-      </article>
-    </section>
-
+    <!-- Q1 -->
     <section class="card">
-      <h2>Choropleth Map — Fines by Jurisdiction (<span id="mapYearLbl">2024</span>)</h2>
-      <div id="map" class="viz map-viz"></div>
-      <div id="mapLegend" class="legend"></div>
+      <h2>Q1. Which jurisdiction has the highest fine amount imposed?</h2>
+      <p class="small">
+        Based on total speeding fines summed across all years in the dataset.
+      </p>
+      <div id="q1Chart" class="viz"></div>
+      <p id="q1Answer" class="answer-text"></p>
     </section>
+
+    <!-- Q2 -->
+    <section class="card">
+      <h2>Q2. What are the changes in the speed enforcement measures for the years 2023 and 2024?</h2>
+      <p class="small">
+        Comparison of camera-issued and police-issued speeding fines in 2023 vs 2024.
+      </p>
+      <div id="q2Chart" class="viz"></div>
+      <p id="q2Answer" class="answer-text"></p>
+    </section>
+
+    <!-- Q3 -->
+    <section class="card">
+      <h2>Q3. In 2024, which age group had the most speeding fine records?</h2>
+      <div id="q3Chart" class="viz"></div>
+      <p id="q3Answer" class="answer-text"></p>
+    </section>
+
+    <!-- Q4 -->
+    <section class="card">
+      <h2>Q4. Which states have the highest average fine amounts in 2024?</h2>
+      <div id="q4Chart" class="viz"></div>
+      <p id="q4Answer" class="answer-text"></p>
+    </section>
+
+    <!-- Q5 -->
+    <section class="card">
+      <h2>Q5. In 2024, which Australian state had the most speeding fine records for the 0–16 age group?</h2>
+      <div id="q5Chart" class="viz"></div>
+      <p id="q5Answer" class="answer-text"></p>
+    </section>
+
   </main>
 
   <footer class="site-footer">
     <span>© 2025 COS30045</span>
-    <span>Data: BITRE 2008–2024</span>
+    <span>Data: BITRE Road Safety Enforcement (derived CSVs)</span>
   </footer>
 
   <script src="../js/script.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 </body>
 </html>

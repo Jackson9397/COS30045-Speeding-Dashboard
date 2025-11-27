@@ -162,3 +162,19 @@ body{
     grid-template-columns: repeat(3, 1fr); /* three controls in a row */
   }
 }
+<<<<<<< HEAD
+
+/* ===== Clickable source link styling ===== */
+
+.source-link a {
+  color: var(--accent);                 /* theme blue (#5b9dff) */
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.source-link a:hover {
+  color: var(--accent-2);               /* light green accent */
+  text-shadow: 0 0 6px rgba(126, 240, 209, 0.6);
+}
+=======
+>>>>>>> 865ca2c203483d8d3b836c5f7f6d0e4b34d9e276

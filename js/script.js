@@ -1,476 +1,623 @@
-/* COS30045 Speeding Dashboard — D3 v7
-   Loads:
-     ../data/police_enforcement_2024_fines.csv
-     ../js/aus_states.geojson
-   Draws: Line (national), Area (jurisdiction), Choropleth (by jurisdiction)
+/* COS30045 Speeding Dashboard — Question-based version
+   Uses:
+     ../data/q1.csv  (jurisdiction totals by year)
+     ../data/q2.csv  (enforcement type totals by year)
+     ../data/q3.csv  (2024 age group totals)
+     ../data/q4.csv  (2024 average fines by jurisdiction)
+     ../data/q5.csv  (2024 age 0–16 totals by jurisdiction)
 */
 
-// ---------- Helpers ----------
-const $ = (sel) => document.querySelector(sel);
 const fmt = d3.format(",");
-const yearParse = (v) => +String(v).match(/\d{4}/)?.[0] || null;
 
-function normKey(s) { return String(s || "").trim().toLowerCase(); }
+// ---------- Generic bar chart helper (for Q1 only now) ----------
+function renderBarChart(config) {
+  const {
+    elId,
+    data,
+    xField,
+    yField,
+    xLabelRotate = 0,
+    highlightKey = null,
+    answerId = null,
+    answerText = null,
+    yLabel = "",
+    valueFormat = (v) => fmt(v)
+  } = config;
 
-// Map DETECTION_METHOD values to buckets: "police" | "camera" | "other"
-function normaliseDetection(raw) {
-  const s = String(raw || "").trim().toLowerCase();
+  const container = d3.select("#" + elId);
+  if (container.empty()) return;
 
-  // POLICE
-  if (s === "police issued" || s.includes("police issued")) return "police";
+  container.selectAll("*").remove();
 
-  // CAMERA (any camera flavour)
-  // catches: average speed camera, fixed camera, fixed or mobile camera,
-  // mobile camera, red light camera, speed camera, etc.
-  if (s.includes("camera")) return "camera";
+  const node = container.node();
+  const width = (node && node.clientWidth) ? node.clientWidth : 600;
+  const height = 280;
+  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
 
-  // OTHER family (unknown / not applicable / other / blanks)
-  if (
-    !s ||
-    s === "other" ||
-    s === "unknown" ||
-    s === "not applicable" ||
-    s === "n/a" ||
-    s === "na"
-  ) return "other";
+  const svg = container
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
 
-  // Fallback
-  return "other";
-}
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
 
-function coerceRow(row) {
-  // Make column name access resilient
-  const keyMap = {};
-  for (const k of Object.keys(row)) keyMap[normKey(k)] = k;
+  // Scales
+  const x = d3.scaleBand()
+    .domain(data.map(d => d[xField]))
+    .range([0, innerW])
+    .padding(0.2);
 
-  const yearK = keyMap["year"] || keyMap["start date"] || keyMap["date"] || Object.keys(row)[0];
-  const jurisK =
-    keyMap["jurisdiction"] ||
-    keyMap["state"] ||
-    keyMap["state/territory"] ||
-    keyMap["jurisdiction (state/territory)"];
-  const detK = keyMap["detection method"] || keyMap["detection_method"] || keyMap["method"];
-  const offenceK = keyMap["offence type"] || keyMap["offence"] || null;
-  const finesK = keyMap["fines"] || keyMap["count"] || keyMap["value"];
+  const maxY = d3.max(data, d => d[yField]) || 0;
+  const y = d3.scaleLinear()
+    .domain([0, maxY * 1.1])
+    .nice()
+    .range([innerH, 0]);
 
-  const year = yearParse(row[yearK]);
-  const rawJ = String(row[jurisK] ?? "").toUpperCase();
-  const jurisdiction = rawJ
-    .replace("AUSTRALIAN CAPITAL TERRITORY", "ACT")
-    .replace("NEW SOUTH WALES", "NSW")
-    .replace("NORTHERN TERRITORY", "NT")
-    .replace("QUEENSLAND", "QLD")
-    .replace("SOUTH AUSTRALIA", "SA")
-    .replace("TASMANIA", "TAS")
-    .replace("VICTORIA", "VIC")
-    .replace("WESTERN AUSTRALIA", "WA");
-  const detectionRaw = detK ? row[detK] : "";
-  const detection = normaliseDetection(detectionRaw);
-  const offence = offenceK ? String(row[offenceK]).toLowerCase() : "";
-  const fines = +row[finesK] || 0;
+  // Axes
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("transform", `rotate(${xLabelRotate})`)
+    .style("text-anchor", xLabelRotate ? "end" : "middle");
 
-  return { year, jurisdiction, detection, offence, fines };
-}
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(6).tickFormat(valueFormat));
 
-function isSpeeding(rec) {
-  // If an offence column exists, keep "speeding" only; otherwise accept the row.
-  return !rec.offence || rec.offence.includes("speed");
-}
-
-// ---------- App State ----------
-const state = {
-  data: [],
-  years: [],
-  jurisdictions: [],
-  selectedJurisdiction: null,
-  selectedYear: null,
-  selectedMethod: "ALL", // ALL | POLICE | CAMERA | OTHER (case-insensitive)
-  geo: null
-};
-
-// ---------- Init ----------
-(async function init () {
-  try {
-    const fines = await d3.csv("../data/police_enforcement_2024_fines.csv", coerceRow);
-
-    state.data = fines.filter(isSpeeding).filter(d => d.year >= 2008 && d.year <= 2024);
-
-    state.years = Array.from(new Set(state.data.map(d => d.year))).sort((a, b) => a - b);
-    state.jurisdictions = Array.from(new Set(state.data.map(d => d.jurisdiction))).sort();
-
-    state.selectedJurisdiction = state.jurisdictions.includes("VIC") ? "VIC" : state.jurisdictions[0];
-    state.selectedYear = d3.max(state.years);
-
-    // Populate selects
-    const jurSel = $("#jurisdictionSel");
-    if (jurSel) {
-      jurSel.innerHTML = state.jurisdictions.map(j => `<option value="${j}">${j}</option>`).join("");
-      jurSel.value = state.selectedJurisdiction;
-      jurSel.addEventListener("change", (e) => {
-        state.selectedJurisdiction = e.target.value;
-        drawArea();
-      });
-    }
-
-    const yearSel = $("#yearSel");
-    if (yearSel) {
-      yearSel.innerHTML = state.years.map(y =>
-        `<option value="${y}" ${y === state.selectedYear ? "selected" : ""}>${y}</option>`
-      ).join("");
-      yearSel.addEventListener("change", (e) => {
-        state.selectedYear = +e.target.value;
-        const yLbl = $("#mapYearLbl");
-        if (yLbl) yLbl.textContent = state.selectedYear;
-        drawMap();
-      });
-    }
-
-    const detectSel = $("#detectSel");
-    if (detectSel) {
-      const opts = [
-        { v: "ALL", label: "All" },
-        { v: "POLICE", label: "Police-issued" },
-        { v: "CAMERA", label: "Camera" },
-        { v: "OTHER", label: "Other" }
-      ];
-      detectSel.innerHTML = opts.map(o => `<option value="${o.v}">${o.label}</option>`).join("");
-      detectSel.value = state.selectedMethod;
-      detectSel.addEventListener("change", (e) => {
-        state.selectedMethod = e.target.value;
-        redrawAll();
-      });
-    }
-
-    try {
-      state.geo = await d3.json("../js/aus_states.geojson");
-    } catch (e) {
-      console.warn("Could not load ../js/aus_states.geojson. Check path/name.", e);
-    }
-
-    drawLine();
-    drawArea();
-    drawMap();
-
-    window.addEventListener("resize", () => {
-      drawLine(true);
-      drawArea(true);
-      drawMap(true);
-    });
-  } catch (err) {
-    console.error("Initialisation error:", err);
+  if (yLabel) {
+    g.append("text")
+      .attr("x", -innerH / 2)
+      .attr("y", -margin.left + 18)
+      .attr("transform", "rotate(-90)")
+      .attr("text-anchor", "middle")
+      .attr("fill", "#9fb0d8")
+      .style("font-size", ".8rem")
+      .text(yLabel);
   }
-})();
 
-// ---------- Filtering by Detection ----------
-function filterByMethod (rows, method) {
-  // Accept values: "ALL" | "POLICE" | "CAMERA" | "OTHER" (and tolerant aliases)
-  const m = String(method || "ALL").trim().toLowerCase();
-  if (m === "all") return rows;
+  // Bars
+  const tooltip = createTooltip();
 
-  const isPolice = (d) => d.detection === "police";
-  const isCamera = (d) => d.detection === "camera";
-  const isOther  = (d) => d.detection === "other";
-
-  const policeKeys = ["police", "police-issued", "police issued", "officer", "patrol", "ots", "on-the-spot", "on the spot"];
-  const cameraKeys = ["camera", "mobile camera", "fixed camera", "average speed", "red light", "speed camera"];
-  const otherKeys  = ["other", "unknown", "not applicable", "n/a", "na"];
-
-  if (policeKeys.some(k => m.includes(k))) return rows.filter(isPolice);
-  if (cameraKeys.some(k => m.includes(k))) return rows.filter(isCamera);
-  if (otherKeys.some(k => m.includes(k)))  return rows.filter(isOther);
-
-  // Also allow strict tokens "police"|"camera"|"other"
-  if (m === "police") return rows.filter(isPolice);
-  if (m === "camera") return rows.filter(isCamera);
-  if (m === "other")  return rows.filter(isOther);
-
-  // Unknown value → do not filter
-  return rows;
-}
-
-// ---------- Line Chart (National) ----------
-function drawLine () {
-  const el = d3.select("#lineChart");
-  if (el.empty()) return;
-
-  el.selectAll("*").remove();
-
-  const w = el.node().clientWidth || 600;
-  const h = el.node().clientHeight || 300;
-  const m = { t: 24, r: 20, b: 40, l: 60 };
-  const innerW = w - m.l - m.r;
-  const innerH = h - m.t - m.b;
-
-  const svg = el.append("svg").attr("width", w).attr("height", h);
-  const g = svg.append("g").attr("transform", `translate(${m.l},${m.t})`);
-
-  const filtered = filterByMethod(state.data, state.selectedMethod);
-  const totals = d3.rollups(filtered, v => d3.sum(v, d => d.fines), d => d.year)
-                   .sort((a, b) => a[0] - b[0]);
-
-  const x = d3.scaleLinear().domain(d3.extent(state.years)).range([0, innerW]);
-  const y = d3.scaleLinear().domain([0, d3.max(totals, d => d[1]) * 1.08]).nice()
-               .range([innerH, 0]);
-
-  g.append("g").attr("transform", `translate(0,${innerH})`)
-    .call(d3.axisBottom(x).ticks(8).tickFormat(d3.format("d"))).attr("class", "axis");
-  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat(d => fmt(d))).attr("class", "axis");
-
-  const line = d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX);
-
-  // gradient + path
-  const defs = svg.append("defs");
-  const grad = defs.append("linearGradient").attr("id", "lineGrad").attr("x1", "0%").attr("x2", "100%");
-  grad.append("stop").attr("offset", "0%").attr("stop-color", "#7ef0d1");
-  grad.append("stop").attr("offset", "100%").attr("stop-color", "#5b9dff");
-
-  const path = g.append("path")
-    .datum(totals)
-    .attr("fill", "none")
-    .attr("stroke", "url(#lineGrad)")
-    .attr("stroke-width", 2.5)
-    .attr("d", line);
-
-  // draw points (for click targets on mobile) + tooltip on hover
-  const tip = createTooltip();
-  g.selectAll(".pt").data(totals).enter().append("circle")
-    .attr("class", "pt").attr("r", 3.5)
-    .attr("cx", d => x(d[0])).attr("cy", d => y(d[1]))
-    .style("fill", "#7ef0d1")
-    .on("mouseenter", (e, d) => tip.show(e, `${d[0]}: <b>${fmt(d[1])}</b> fines`))
-    .on("mouseleave", () => tip.hide());
-
-  // ---- focus that follows the mouse ----
-  const focus = g.append("g").attr("class", "focus").style("display", "none");
-  focus.append("circle").attr("r", 5).attr("fill", "#fff").attr("stroke", "#5b9dff");
-  focus.append("text").attr("x", 9).attr("dy", "-0.7em")
-       .attr("fill", "#dfe8ff").style("font-size", "0.85rem");
-
-  const bisect = d3.bisector(d => d[0]).center;
-
-  svg.append("rect")
-    .attr("class", "overlay")
-    .attr("fill", "transparent")
-    .attr("pointer-events", "all")
-    .attr("x", m.l).attr("y", m.t)
-    .attr("width", innerW).attr("height", innerH)
-    .on("mouseenter", () => {
-      focus.style("display", null);
-      path.attr("stroke-width", 3.5).attr("stroke", "#6fc1ff");
-    })
-    .on("mouseleave", () => {
-      focus.style("display", "none");
-      path.attr("stroke-width", 2.5).attr("stroke", "url(#lineGrad)");
-      tip.hide();
-    })
-    .on("mousemove", function (event) {
-      const xm = d3.pointer(event, this)[0] - m.l;
-      const xYear = Math.round(x.invert(xm));
-      const idx = Math.max(0, Math.min(totals.length - 1, bisect(totals, xYear)));
-      const d = totals[idx];
-
-      focus.attr("transform", `translate(${x(d[0])},${y(d[1])})`);
-      focus.select("text").text(`${d[0]} • ${fmt(d[1])}`);
-
-      tip.show(event, `${d[0]}: <b>${fmt(d[1])}</b> fines`);
-    });
-}
-
-
-// ---------- Area Chart (Selected Jurisdiction) ----------
-function drawArea () {
-  const el = d3.select("#areaChart");
-  if (el.empty()) return;
-
-  el.selectAll("*").remove();
-
-  const w = el.node().clientWidth || 600;
-  const h = el.node().clientHeight || 300;
-  const m = { t: 24, r: 20, b: 40, l: 60 };
-  const innerW = w - m.l - m.r;
-  const innerH = h - m.t - m.b;
-
-  const svg = el.append("svg").attr("width", w).attr("height", h);
-  const g = svg.append("g").attr("transform", `translate(${m.l},${m.t})`);
-
-  const filtered = filterByMethod(
-    state.data.filter(d => d.jurisdiction === state.selectedJurisdiction),
-    state.selectedMethod
-  );
-  const series = d3.rollups(filtered, v => d3.sum(v, d => d.fines), d => d.year).sort((a, b) => a[0] - b[0]);
-
-  const x = d3.scaleLinear().domain(d3.extent(state.years)).range([0, innerW]);
-  const y = d3.scaleLinear().domain([0, d3.max(series, d => d[1]) * 1.15]).nice().range([innerH, 0]);
-
-  g.append("g").attr("transform", `translate(0,${innerH})`)
-    .call(d3.axisBottom(x).ticks(8).tickFormat(d3.format("d"))).attr("class", "axis");
-  g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat(d => fmt(d))).attr("class", "axis");
-
-  const area = d3.area().x(d => x(d[0])).y0(innerH).y1(d => y(d[1])).curve(d3.curveMonotoneX);
-
-  const defs = svg.append("defs");
-  const grad = defs.append("linearGradient").attr("id", "areaGrad").attr("x1", "0%").attr("y1", "0%").attr("x2", "0%").attr("y2", "100%");
-  grad.append("stop").attr("offset", "0%").attr("stop-color", "#5b9dff").attr("stop-opacity", 0.9);
-  grad.append("stop").attr("offset", "100%").attr("stop-color", "#5b9dff").attr("stop-opacity", 0.1);
-
-  const areaPath = g.append("path")
-    .datum(series)
-    .attr("fill", "url(#areaGrad)")
-    .attr("d", area)
-    .attr("opacity", 1);
-
-  // a thin outline line to improve focus visibility
-  const outline = g.append("path")
-    .datum(series)
-    .attr("fill", "none")
-    .attr("stroke", "#5b9dff")
-    .attr("stroke-width", 1.2)
-    .attr("d", d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX));
-
-  g.append("text")
-    .attr("x", innerW)
-    .attr("y", -6)
-    .attr("text-anchor", "end")
-    .attr("fill", "#9fb0d8")
-    .style("font-size", ".95rem")
-    .text(state.selectedJurisdiction);
-
-  // ---- focus + hover highlight ----
-  const tip = createTooltip();
-
-  const focus = g.append("g").attr("class", "focus").style("display", "none");
-  focus.append("circle").attr("r", 5).attr("fill", "#fff").attr("stroke", "#5b9dff");
-  focus.append("text").attr("x", 9).attr("dy", "-0.7em")
-       .attr("fill", "#dfe8ff").style("font-size", "0.85rem");
-
-  const bisect = d3.bisector(d => d[0]).center;
-
-  svg.append("rect")
-    .attr("class", "overlay")
-    .attr("fill", "transparent")
-    .attr("pointer-events", "all")
-    .attr("x", m.l).attr("y", m.t)
-    .attr("width", innerW).attr("height", innerH)
-    .on("mouseenter", () => {
-      focus.style("display", null);
-      areaPath.attr("opacity", 0.95);
-      outline.attr("stroke-width", 2).attr("stroke", "#6fc1ff");
-    })
-    .on("mouseleave", () => {
-      focus.style("display", "none");
-      areaPath.attr("opacity", 1);
-      outline.attr("stroke-width", 1.2).attr("stroke", "#5b9dff");
-      tip.hide();
-    })
-    .on("mousemove", function (event) {
-      const xm = d3.pointer(event, this)[0] - m.l;
-      const xYear = Math.round(x.invert(xm));
-      const idx = Math.max(0, Math.min(series.length - 1, bisect(series, xYear)));
-      const d = series[idx];
-
-      focus.attr("transform", `translate(${x(d[0])},${y(d[1])})`);
-      focus.select("text").text(`${d[0]} • ${fmt(d[1])}`);
-
-      tip.show(event, `${state.selectedJurisdiction} — ${d[0]}: <b>${fmt(d[1])}</b> fines`);
-    });
-}
-
-
-// ---------- Map (Choropleth) ----------
-function drawMap(){
-  const el = d3.select("#map");
-  if (el.empty() || !state.geo) return;
-
-  el.selectAll("*").remove();
-
-  const w = el.node().clientWidth || 640, h = el.node().clientHeight || 420;
-  const svg = el.append("svg").attr("width", w).attr("height", h);
-  const g = svg.append("g");
-
-  const projection = d3.geoMercator().fitSize([w, h-10], state.geo);
-  const path = d3.geoPath(projection);
-
-  const data = filterByMethod(state.data.filter(d=>d.year===state.selectedYear), state.selectedMethod);
-  const byJ = d3.rollup(data, v=>d3.sum(v,d=>d.fines), d=>d.jurisdiction);
-
-  const values = Array.from(byJ.values());
-  const domain = values.length ? [d3.min(values), d3.max(values)] : [0,1];
-  const color = d3.scaleQuantize().domain(domain).range(d3.schemeBlues[7].slice(1));
-
-  const tip = createTooltip();
-
-  g.selectAll("path.state")
-    .data(state.geo.features)
-    .enter().append("path")
-    .attr("class","state")
-    .attr("d", path)
+  g.selectAll(".bar")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("class", "bar")
+    .attr("x", d => x(d[xField]))
+    .attr("y", d => y(d[yField]))
+    .attr("width", x.bandwidth())
+    .attr("height", d => innerH - y(d[yField]))
     .attr("fill", d => {
-      const key = extractGeoKey(d);
-      const v = byJ.get(key) || 0;
-      return v ? color(v) : "#1c254f";
+      if (!highlightKey) return "#5b9dff";
+      return d[xField] === highlightKey ? "#ffb74d" : "#5b9dff";
     })
-    .attr("stroke","rgba(255,255,255,.25)")
-    .attr("stroke-width",1)
-    .on("mousemove",(e,d)=> {
-      const key = extractGeoKey(d);
-      const v = byJ.get(key) || 0;
-      tip.show(e, `${key} — <b>${fmt(v)}</b> fines`);
+    .on("mousemove", (event, d) => {
+      tooltip.show(event,
+        `${d[xField]}: <b>${valueFormat(d[yField])}</b>`
+      );
     })
-    .on("mouseleave",()=> tip.hide())
-    .on("click",(e,d)=>{
-      const key = extractGeoKey(d);
-      if (state.jurisdictions.includes(key) && key !== state.selectedJurisdiction) {
-        state.selectedJurisdiction = key;
-        const sel = $("#jurisdictionSel"); if (sel) sel.value = key;
-        drawArea();
-      }
-    });
+    .on("mouseleave", () => tooltip.hide());
 
-  // Legend
-  const legend = d3.select("#mapLegend").html("");
-  const row = legend.append("div").attr("class","row");
-  color.range().forEach(c=> row.append("span").attr("class","swatch").style("background",c));
-  legend.append("span").text("Fewer  →  More fines");
-
-  // Year label
-  const yr = $("#mapYearLbl");
-  if (yr) yr.textContent = state.selectedYear;
+  // Optional text answer
+  if (answerId && answerText) {
+    const el = document.getElementById(answerId);
+    if (el) el.textContent = answerText;
+  }
 }
 
-function extractGeoKey(d){
-  const props = d.properties || {};
-  // Rowan Hogan geojson typically has STATE_NAME, sometimes STATE_CODE
-  const code = String(props.STATE_CODE || "").toUpperCase();
-  const name = String(props.STATE_NAME || "").toUpperCase();
-  const map = {
-    "AUSTRALIAN CAPITAL TERRITORY":"ACT","NEW SOUTH WALES":"NSW","NORTHERN TERRITORY":"NT",
-    "QUEENSLAND":"QLD","SOUTH AUSTRALIA":"SA","TASMANIA":"TAS","VICTORIA":"VIC","WESTERN AUSTRALIA":"WA"
-  };
-  if (["ACT","NSW","NT","QLD","SA","TAS","VIC","WA"].includes(code)) return code;
-  if (name && map[name]) return map[name];
-  return code || map[name] || name || "NA";
-}
-
-// ---------- Tooltip ----------
-function createTooltip(){
+// Simple tooltip helper
+function createTooltip() {
   let tip = d3.select(".tooltip");
-  if (tip.empty()){
-    tip = d3.select("body").append("div").attr("class","tooltip");
+  if (tip.empty()) {
+    tip = d3.select("body").append("div").attr("class", "tooltip");
   }
   return {
     show: (evt, html) => {
       tip.html(html)
         .style("left", (evt.clientX + 12) + "px")
-        .style("top",  (evt.clientY + 12) + "px")
+        .style("top", (evt.clientY + 12) + "px")
         .classed("show", true);
     },
     hide: () => tip.classed("show", false)
   };
 }
 
-// ---------- Redraw ----------
-function redrawAll(){
-  drawLine();
-  drawArea();
-  drawMap();
+// ---------- Q1: Which jurisdiction has the highest fine amount imposed? ----------
+function drawQ1(rows) {
+  if (!rows || !rows.length) return;
+
+  const cols = Object.keys(rows[0]).filter(c => c !== "YEAR");
+
+  const data = cols.map(col => {
+    const total = d3.sum(rows, r => +r[col] || 0);
+    const juris = col.split("+")[0]; // e.g. "NSW+Sum(FINES)" → "NSW"
+    return { jurisdiction: juris, total };
+  });
+
+  data.sort((a, b) => b.total - a.total);
+  const top = data[0];
+
+  renderBarChart({
+    elId: "q1Chart",
+    data,
+    xField: "jurisdiction",
+    yField: "total",
+    highlightKey: top ? top.jurisdiction : null,
+    answerId: "q1Answer",
+    answerText: top
+      ? `Answer: ${top.jurisdiction} has the highest total speeding fines imposed (${fmt(top.total)} fines across all years).`
+      : "Answer: Data not available.",
+    yLabel: "Total fines (all years)",
+    valueFormat: v => fmt(v)
+  });
 }
+
+// ---------- Q2: Changes in enforcement measures (2023 vs 2024, camera vs police only) ----------
+function drawQ2(rows) {
+  if (!rows || !rows.length) return;
+
+  rows.forEach(r => r.YEAR = +r.YEAR);
+
+  const targetYears = [2023, 2024];
+  const filtered = rows.filter(r => targetYears.includes(r.YEAR));
+
+  const categories = [
+    { key: "camera-issued fine+Sum(FINES)", label: "Camera-issued" },
+    { key: "police-issued fine+Sum(FINES)", label: "Police-issued" }
+  ];
+
+  // Flattened data for grouped columns
+  const data = [];
+  filtered.forEach(row => {
+    categories.forEach(cat => {
+      const value = +row[cat.key] || 0;
+      data.push({
+        year: row.YEAR,
+        type: cat.label,
+        value
+      });
+    });
+  });
+
+  // Precompute 2023 vs 2024 differences for answer text
+  const byYearType = {};
+  data.forEach(d => {
+    const k = `${d.type}-${d.year}`;
+    byYearType[k] = d.value;
+  });
+
+  const parts = categories.map(cat => {
+    const v23 = byYearType[`${cat.label}-2023`] || 0;
+    const v24 = byYearType[`${cat.label}-2024`] || 0;
+    const diff = v24 - v23;
+    if (diff > 0) {
+      return `${cat.label} increased by ${fmt(diff)} fines from 2023 to 2024`;
+    } else if (diff < 0) {
+      return `${cat.label} decreased by ${fmt(Math.abs(diff))} fines from 2023 to 2024`;
+    }
+    return `${cat.label} stayed about the same between 2023 and 2024`;
+  });
+
+  const answerText = "Answer: " + parts.join("; ") + ".";
+
+  // ---- Draw grouped column chart ----
+  const container = d3.select("#q2Chart");
+  if (container.empty()) return;
+
+  container.selectAll("*").remove();
+
+  const node = container.node();
+  const width = (node && node.clientWidth) ? node.clientWidth : 640;
+  const height = 320;
+  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = container.append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const years = targetYears;
+  const types = categories.map(c => c.label);
+
+  const x0 = d3.scaleBand()
+    .domain(years)
+    .range([0, innerW])
+    .padding(0.2);
+
+  const x1 = d3.scaleBand()
+    .domain(types)
+    .range([0, x0.bandwidth()])
+    .padding(0.1);
+
+  const maxY = d3.max(data, d => d.value) || 0;
+  const y = d3.scaleLinear()
+    .domain([0, maxY * 1.1])
+    .nice()
+    .range([innerH, 0]);
+
+  const color = d3.scaleOrdinal()
+    .domain(types)
+    .range(["#5b9dff", "#ffb74d"]);
+
+  const tooltip = createTooltip();
+
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x0).tickFormat(d3.format("d")));
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(6).tickFormat(v => fmt(v)));
+
+  g.append("text")
+    .attr("x", -innerH / 2)
+    .attr("y", -margin.left + 18)
+    .attr("transform", "rotate(-90)")
+    .attr("text-anchor", "middle")
+    .attr("fill", "#9fb0d8")
+    .style("font-size", ".8rem")
+    .text("Number of fines");
+
+  const yearGroups = g.selectAll(".year-group")
+    .data(years)
+    .enter()
+    .append("g")
+    .attr("class", "year-group")
+    .attr("transform", d => `translate(${x0(d)},0)`);
+
+  yearGroups.selectAll("rect")
+    .data(year => data.filter(d => d.year === year))
+    .enter()
+    .append("rect")
+    .attr("x", d => x1(d.type))
+    .attr("y", d => y(d.value))
+    .attr("width", x1.bandwidth())
+    .attr("height", d => innerH - y(d.value))
+    .attr("fill", d => color(d.type))
+    .on("mousemove", (event, d) => {
+      tooltip.show(event,
+        `${d.year} — ${d.type}: <b>${fmt(d.value)}</b> fines`
+      );
+    })
+    .on("mouseleave", () => tooltip.hide());
+
+  // Legend
+  const legend = g.append("g")
+    .attr("transform", `translate(${innerW - 150}, 0)`);
+
+  types.forEach((t, i) => {
+    const lg = legend.append("g")
+      .attr("transform", `translate(0, ${i * 18})`);
+    lg.append("rect")
+      .attr("width", 12)
+      .attr("height", 12)
+      .attr("fill", color(t));
+    lg.append("text")
+      .attr("x", 18)
+      .attr("y", 10)
+      .style("font-size", ".75rem")
+      .attr("fill", "#dfe8ff")
+      .text(t);
+  });
+
+  const el = document.getElementById("q2Answer");
+  if (el) el.textContent = answerText;
+}
+
+// ---------- Q3: Age group with most records in 2024 (pie chart) ----------
+function drawQ3(rows) {
+  if (!rows || !rows.length) return;
+
+  const data = rows.map(r => ({
+    age: r.AGE_GROUP,
+    fines: +r["Sum(FINES)"] || 0
+  }));
+
+  data.sort((a, b) => b.fines - a.fines);
+  const top = data[0];
+
+  const container = d3.select("#q3Chart");
+  if (container.empty()) return;
+  container.selectAll("*").remove();
+
+  const node = container.node();
+  const width = (node && node.clientWidth) ? node.clientWidth : 500;
+  const height = 300;
+  const radius = Math.min(width, height) / 2 - 20;
+
+  const svg = container.append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${width / 2},${height / 2})`);
+
+  const color = d3.scaleOrdinal()
+    .domain(data.map(d => d.age))
+    .range(d3.schemeSet2);
+
+  const pie = d3.pie()
+    .value(d => d.fines)
+    .sort(null);
+
+  const arc = d3.arc()
+    .innerRadius(0)
+    .outerRadius(radius);
+
+  const tooltip = createTooltip();
+
+  const arcs = g.selectAll("path")
+    .data(pie(data))
+    .enter()
+    .append("path")
+    .attr("d", arc)
+    .attr("fill", d => color(d.data.age))
+    .attr("stroke", "#111827")
+    .attr("stroke-width", 1)
+    .on("mousemove", (event, d) => {
+      tooltip.show(event,
+        `${d.data.age}: <b>${fmt(d.data.fines)}</b> fines`
+      );
+    })
+    .on("mouseleave", () => tooltip.hide());
+
+  // Legend
+  const legend = svg.append("g")
+    .attr("transform", `translate(10,10)`);
+
+  data.forEach((d, i) => {
+    const lg = legend.append("g")
+      .attr("transform", `translate(0, ${i * 18})`);
+    lg.append("rect")
+      .attr("width", 12)
+      .attr("height", 12)
+      .attr("fill", color(d.age));
+    lg.append("text")
+      .attr("x", 18)
+      .attr("y", 10)
+      .style("font-size", ".75rem")
+      .attr("fill", "#dfe8ff")
+      .text(d.age);
+  });
+
+  const answerEl = document.getElementById("q3Answer");
+  if (answerEl && top) {
+    answerEl.textContent =
+      `Answer: The ${top.age} age group has the most speeding fine records in 2024 (${fmt(top.fines)} fines).`;
+  } else if (answerEl) {
+    answerEl.textContent = "Answer: Data not available.";
+  }
+}
+
+// ---------- Q4: States with highest average fine amounts in 2024 (area chart) ----------
+function drawQ4(rows) {
+  if (!rows || !rows.length) return;
+
+  const data = rows.map(r => ({
+    jurisdiction: r.JURISDICTION,
+    meanFine: +r["Mean(FINES)"] || 0
+  }));
+
+  // Sort by jurisdiction name or by meanFine; here we sort alphabetically for a smoother x-axis
+  data.sort((a, b) => d3.ascending(a.jurisdiction, b.jurisdiction));
+
+  const top = [...data].sort((a, b) => b.meanFine - a.meanFine)[0];
+  const top3 = [...data].sort((a, b) => b.meanFine - a.meanFine).slice(0, 3);
+
+  const topList = top3.map(d =>
+    `${d.jurisdiction} (${d.meanFine.toFixed(2)})`
+  ).join(", ");
+
+  const answerText = top
+    ? `Answer: ${top.jurisdiction} has the highest average fine amount in 2024 (${top.meanFine.toFixed(2)}). Top states by average fine are: ${topList}.`
+    : "Answer: Data not available.";
+
+  const container = d3.select("#q4Chart");
+  if (container.empty()) return;
+  container.selectAll("*").remove();
+
+  const node = container.node();
+  const width = (node && node.clientWidth) ? node.clientWidth : 640;
+  const height = 320;
+  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = container.append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scalePoint()
+    .domain(data.map(d => d.jurisdiction))
+    .range([0, innerW])
+    .padding(0.5);
+
+  const maxY = d3.max(data, d => d.meanFine) || 0;
+  const y = d3.scaleLinear()
+    .domain([0, maxY * 1.1])
+    .nice()
+    .range([innerH, 0]);
+
+  const area = d3.area()
+    .x(d => x(d.jurisdiction))
+    .y0(innerH)
+    .y1(d => y(d.meanFine))
+    .curve(d3.curveMonotoneX);
+
+  const line = d3.line()
+    .x(d => x(d.jurisdiction))
+    .y(d => y(d.meanFine))
+    .curve(d3.curveMonotoneX);
+
+  const tooltip = createTooltip();
+
+  // Axes
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x));
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(6).tickFormat(v => v.toFixed(2)));
+
+  g.append("text")
+    .attr("x", -innerH / 2)
+    .attr("y", -margin.left + 18)
+    .attr("transform", "rotate(-90)")
+    .attr("text-anchor", "middle")
+    .attr("fill", "#9fb0d8")
+    .style("font-size", ".8rem")
+    .text("Average fine amount in 2024");
+
+  // Area
+  g.append("path")
+    .datum(data)
+    .attr("fill", "#5b9dff")
+    .attr("opacity", 0.35)
+    .attr("d", area);
+
+  // Line
+  g.append("path")
+    .datum(data)
+    .attr("fill", "none")
+    .attr("stroke", "#5b9dff")
+    .attr("stroke-width", 2)
+    .attr("d", line);
+
+  // Points
+  g.selectAll("circle")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("cx", d => x(d.jurisdiction))
+    .attr("cy", d => y(d.meanFine))
+    .attr("r", d => d.jurisdiction === top.jurisdiction ? 5 : 3)
+    .attr("fill", d => d.jurisdiction === top.jurisdiction ? "#ffb74d" : "#1f2937")
+    .attr("stroke", "#5b9dff")
+    .on("mousemove", (event, d) => {
+      tooltip.show(event,
+        `${d.jurisdiction}: <b>${d.meanFine.toFixed(2)}</b>`
+      );
+    })
+    .on("mouseleave", () => tooltip.hide());
+
+  const el = document.getElementById("q4Answer");
+  if (el) el.textContent = answerText;
+}
+
+// ---------- Q5: 0–16 age group, most records by state in 2024 (line chart) ----------
+function drawQ5(rows) {
+  if (!rows || !rows.length) return;
+
+  const data = rows.map(r => ({
+    jurisdiction: r.JURISDICTION,
+    fines: +r["Sum(FINES)"] || 0
+  }));
+
+  // Sort by jurisdiction for line ordering
+  data.sort((a, b) => d3.ascending(a.jurisdiction, b.jurisdiction));
+
+  const top = [...data].sort((a, b) => b.fines - a.fines)[0];
+
+  const container = d3.select("#q5Chart");
+  if (container.empty()) return;
+  container.selectAll("*").remove();
+
+  const node = container.node();
+  const width = (node && node.clientWidth) ? node.clientWidth : 640;
+  const height = 320;
+  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = container.append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scalePoint()
+    .domain(data.map(d => d.jurisdiction))
+    .range([0, innerW])
+    .padding(0.5);
+
+  const maxY = d3.max(data, d => d.fines) || 0;
+  const y = d3.scaleLinear()
+    .domain([0, maxY * 1.1])
+    .nice()
+    .range([innerH, 0]);
+
+  const line = d3.line()
+    .x(d => x(d.jurisdiction))
+    .y(d => y(d.fines))
+    .curve(d3.curveMonotoneX);
+
+  const tooltip = createTooltip();
+
+  // Axes
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x));
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(6).tickFormat(v => fmt(v)));
+
+  g.append("text")
+    .attr("x", -innerH / 2)
+    .attr("y", -margin.left + 18)
+    .attr("transform", "rotate(-90)")
+    .attr("text-anchor", "middle")
+    .attr("fill", "#9fb0d8")
+    .style("font-size", ".8rem")
+    .text("Fines in 2024 (age 0–16)");
+
+  // Line
+  g.append("path")
+    .datum(data)
+    .attr("fill", "none")
+    .attr("stroke", "#5b9dff")
+    .attr("stroke-width", 2)
+    .attr("d", line);
+
+  // Points
+  g.selectAll("circle")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("cx", d => x(d.jurisdiction))
+    .attr("cy", d => y(d.fines))
+    .attr("r", d => d.jurisdiction === top.jurisdiction ? 5 : 3)
+    .attr("fill", d => d.jurisdiction === top.jurisdiction ? "#ffb74d" : "#1f2937")
+    .attr("stroke", "#5b9dff")
+    .on("mousemove", (event, d) => {
+      tooltip.show(event,
+        `${d.jurisdiction}: <b>${fmt(d.fines)}</b> fines`
+      );
+    })
+    .on("mouseleave", () => tooltip.hide());
+
+  const el = document.getElementById("q5Answer");
+  if (el) {
+    el.textContent = top
+      ? `Answer: ${top.jurisdiction} has the most speeding fine records for the 0–16 age group in 2024 (${fmt(top.fines)} fines).`
+      : "Answer: Data not available.";
+  }
+}
+
+// ---------- Init ----------
+document.addEventListener("DOMContentLoaded", () => {
+  d3.csv("../data/q1.csv").then(drawQ1);
+  d3.csv("../data/q2.csv").then(drawQ2);
+  d3.csv("../data/q3.csv").then(drawQ3);
+  d3.csv("../data/q4.csv").then(drawQ4);
+  d3.csv("../data/q5.csv").then(drawQ5);
+});
