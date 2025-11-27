@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <title>COS30045 • Speeding Enforcement Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <link href="../css/style.css" rel="stylesheet" />
   <link rel="preload" as="image" href="../assets/logo.png">
 </head>
@@ -34,20 +35,27 @@
 
     <section class="grid-2">
       <article class="card">
-        <h2>What’s inside</h2>
-        <ul class="tick">
-          <li>National trend <strong>line chart</strong></li>
-          <li>Jurisdiction <strong>area chart</strong></li>
-          <li>Interactive <strong>choropleth map</strong></li>
-          <li>Filters: jurisdiction • year • detection</li>
-          <li>Smooth transitions + tooltips</li>
-        </ul>
+       <h2>What’s inside</h2>
+<ul class="tick">
+  <li><strong>Bar Chart (Q1):</strong> Identifies the jurisdiction with the highest total fines.</li>
+  <li><strong>Column Chart (Q2):</strong> Compares 2023 vs 2024 enforcement — camera-issued vs police-issued.</li>
+  <li><strong>Pie Chart (Q3):</strong> Highlights which age group received the most fines in 2024.</li>
+  <li><strong>Area Chart (Q4):</strong> Shows average fine amounts by state for 2024.</li>
+  <li><strong>Line Chart (Q5):</strong> Tracks 0–16 age-group speeding fines across all states.</li>
+</ul>
+
       </article>
       <article class="card">
         <h2>Data Source</h2>
         <p>BITRE Road Safety Enforcement Data (2008–2024).
           Includes speeding infringements captured via police-issued and camera-issued methods.</p>
-        <p class="small">Source: Department of Infrastructure / BITRE — Road Safety Enforcement Data.</p>
+       <p class="small source-link">
+  Source: 
+  <a href="https://catalogue.data.infrastructure.gov.au/dataset/road-safety-enforcement-data" target="_blank">
+    Department of Infrastructure / BITRE — Road Safety Enforcement Data
+  </a>.
+</p>
+
       </article>
     </section>
   </main>

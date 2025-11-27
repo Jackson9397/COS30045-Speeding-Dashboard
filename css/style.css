@@ -90,3 +90,88 @@ body{
 .tooltip.show{opacity:1}
 .overlay { cursor: crosshair; }
 .tooltip { pointer-events: none; }
+/* ===== Mobile-first enhancements ===== */
+
+/* General container padding on small screens */
+.container {
+  padding: 1rem;
+}
+
+/* Cards and grid: stack vertically on narrow screens */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;         /* single column on mobile */
+  gap: 1rem;
+}
+.grid-stack .card {
+  margin: 0;                          /* reduce extra margins */
+}
+
+/* Controls row: turn into a 2-column grid on mobile */
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;     /* two controls per row */
+  gap: .75rem;
+}
+.controls .control {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Charts: fix a sensible height on mobile */
+.viz, .map-viz {
+  min-height: 260px;                  /* keep charts tall enough on phones */
+}
+
+/* Header: compress spacing and wrap nav */
+.site-header {
+  padding: .6rem .9rem;
+}
+.site-header .brand span {
+  font-size: 1rem;
+}
+.nav {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+.nav a {
+  padding: .35rem .6rem;
+  border-radius: .5rem;
+}
+
+/* Legend swatches wrap instead of overflowing */
+.legend .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+
+/* Footer tighter on mobile */
+.site-footer {
+  padding: .75rem .9rem;
+  font-size: .9rem;
+}
+
+/* ====== Wider screens (tablet/desktop) re-enable columns ====== */
+@media (min-width: 768px) {
+  .grid-2 {
+    grid-template-columns: 1fr 1fr;   /* two columns from tablet up */
+  }
+  .controls {
+    grid-template-columns: repeat(3, 1fr); /* three controls in a row */
+  }
+}
+
+/* ===== Clickable source link styling ===== */
+
+.source-link a {
+  color: var(--accent);                 /* theme blue (#5b9dff) */
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.source-link a:hover {
+  color: var(--accent-2);               /* light green accent */
+  text-shadow: 0 0 6px rgba(126, 240, 209, 0.6);
+}
