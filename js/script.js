@@ -95,15 +95,18 @@ function renderBarChart(config) {
     .attr("height", d => innerH - y(d[yField]));
 
   // Value labels at top of each bar (Q1)
-  g.selectAll("text.bar-label")
+      g.selectAll("text.bar-label")
     .data(data)
     .enter()
     .append("text")
     .attr("class", "bar-label")
-    .attr("x", d => x(d[xField]) + x.bandwidth() / 2)
-    .attr("y", d => y(d[yField]) - 4)
+    .attr("x", d => x(d[xField]) + x.bandwidth() / 2)  
+    .attr("y", d => y(d[yField]) - 10)                  
     .attr("text-anchor", "middle")
+    .style("text-anchor", "middle")                     
+    .style("dominant-baseline", "central")              
     .text(d => valueFormat(d[yField]));
+
 
   // Hover guideline + overlay
   const hoverLine = g.append("line")
@@ -190,7 +193,7 @@ function drawQ2(rows) {
   const width = container.node().clientWidth || 640;
   const height = 340;
 
-  const margin = { top: 36, right: 40, bottom: 60, left: 80 };  // a bit more top room
+  const margin = { top: 36, right: 40, bottom: 60, left: 80 };
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
@@ -230,10 +233,17 @@ function drawQ2(rows) {
 
   const tooltip = createTooltip();
 
-  // Axes
+  const minYear = d3.min(years);
+  const maxYear = d3.max(years);
+
+  // Axes – show every year tick
   g.append("g")
     .attr("transform", `translate(0,${innerH})`)
-    .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+    .call(
+      d3.axisBottom(x)
+        .tickValues(d3.range(minYear, maxYear + 1))
+        .tickFormat(d3.format("d"))
+    );
 
   g.append("g")
     .call(d3.axisLeft(y).ticks(6).tickFormat(fmt));
@@ -262,14 +272,14 @@ function drawQ2(rows) {
     .attr("class", "line-others")
     .attr("d", lineOthers);
 
-  // Legend (move ABOVE the plotting area so it doesn't touch the lines)
+  // Legend (top-right, outside chart)
   const legend = svg.append("g")
-    .attr("transform", `translate(${margin.left + innerW - 180}, 10)`); // top-right, outside chart
+    .attr("transform", `translate(${margin.left + innerW - 200}, 10)`);
 
   [
-    { label: "Camera-issued", cls: "legend-swatch-camera" },
-    { label: "Police-issued", cls: "legend-swatch-police" },
-    { label: "Others",        cls: "legend-swatch-others" }
+    { label: "Camera-issued",           cls: "legend-swatch-camera" },
+    { label: "Police-issued",           cls: "legend-swatch-police" },
+    { label: "Others (0–5 fines)",      cls: "legend-swatch-others" }
   ].forEach((item, i) => {
     const row = legend.append("g")
       .attr("transform", `translate(0,${i * 18})`);
@@ -325,8 +335,6 @@ function drawQ2(rows) {
     });
 }
 
-
-// ---------- Q3 (Pie with hover pop-out + labels) ----------
 // ---------- Q3 (Pie with hover pop-out + smart labels) ----------
 function drawQ3(rows) {
   if (!rows.length) return;
@@ -427,7 +435,7 @@ function drawQ3(rows) {
 }
 
 
-// ---------- Q4 (Area + Line with guideline) ----------
+// ---------- Q4 (Horizontal bar chart for mean fine amount) ----------
 function drawQ4(rows) {
   if (!rows.length) return;
 
@@ -437,90 +445,86 @@ function drawQ4(rows) {
   const data = rows.map(r => ({
     jurisdiction: r.JURISDICTION,
     meanFine: +r["Mean(FINES)"] || 0
-  }));
+  })).sort((a, b) => b.meanFine - a.meanFine);
+
+  const top = data[0];
 
   const width = container.node().clientWidth || 640;
   const height = 320;
 
-  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+  const margin = { top: 24, right: 40, bottom: 40, left: 120 };
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
-  data.sort((a, b) => a.jurisdiction.localeCompare(b.jurisdiction));
-
   const svg = container.append("svg")
-    .attr("width", width).attr("height", height);
+    .attr("width", width)
+    .attr("height", height);
+
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scalePoint()
+  const y = d3.scaleBand()
     .domain(data.map(d => d.jurisdiction))
-    .range([0, innerW])
-    .padding(0.5);
+    .range([0, innerH])
+    .padding(0.2);
 
-  const y = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.meanFine) * 1.1])
-    .range([innerH, 0])
+  const maxX = d3.max(data, d => d.meanFine) || 0;
+  const x = d3.scaleLinear()
+    .domain([0, maxX * 1.1])
+    .range([0, innerW])
     .nice();
 
-  const area = d3.area()
-    .x(d => x(d.jurisdiction))
-    .y0(innerH)
-    .y1(d => y(d.meanFine))
-    .curve(d3.curveMonotoneX);
-
-  const line = d3.line()
-    .x(d => x(d.jurisdiction))
-    .y(d => y(d.meanFine))
-    .curve(d3.curveMonotoneX);
-
   const tooltip = createTooltip();
+  const valueFmtAvg = d3.format(".2f");
+
+  g.append("g").call(d3.axisLeft(y));
 
   g.append("g")
     .attr("transform", `translate(0,${innerH})`)
-    .call(d3.axisBottom(x));
-
-  g.append("g")
-    .call(d3.axisLeft(y).ticks(6));
+    .call(d3.axisBottom(x).ticks(6).tickFormat(valueFmtAvg));
 
   g.append("text")
     .attr("class", "axis-label")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -innerH / 2)
-    .attr("y", -margin.left + 18)
+    .attr("x", innerW / 2)
+    .attr("y", innerH + 32)
     .attr("text-anchor", "middle")
-    .text("Average fine amount (2024)");
+    .text("Average fine amount in 2024");
 
-  g.append("path")
-    .datum(data)
-    .attr("class", "area-fill")
-    .attr("d", area);
-
-  g.append("path")
-    .datum(data)
-    .attr("class", "q4-line")
-    .attr("d", line);
-
-  const top = [...data].sort((a, b) => b.meanFine - a.meanFine)[0];
-
-  g.selectAll("circle")
+  // Bars
+  g.selectAll("rect.bar")
     .data(data)
     .enter()
-    .append("circle")
-    .attr("cx", d => x(d.jurisdiction))
-    .attr("cy", d => y(d.meanFine))
-    .attr("r", d => d.jurisdiction === top.jurisdiction ? 5 : 3)
+    .append("rect")
     .attr("class", d =>
-      d.jurisdiction === top.jurisdiction ? "point-highlight" : "point-default"
-    );
+      "bar " + (d.jurisdiction === top.jurisdiction ? "bar-highlight" : "bar-default")
+    )
+    .attr("x", 0)
+    .attr("y", d => y(d.jurisdiction))
+    .attr("width", d => x(d.meanFine))
+    .attr("height", y.bandwidth());
 
+  // Value labels on bars
+  g.selectAll("text.bar-label")
+    .data(data)
+    .enter()
+    .append("text")
+    .attr("class", "bar-label")
+    .attr("x", d => {
+      const pos = x(d.meanFine) + 6;
+      return pos > innerW - 40 ? innerW - 40 : pos;
+    })
+    .attr("y", d => y(d.jurisdiction) + y.bandwidth() / 2)
+    .attr("dy", "0.35em")
+    .text(d => valueFmtAvg(d.meanFine));
+
+  // Hover horizontal guideline
   const hoverLine = g.append("line")
     .attr("class", "hover-line")
-    .attr("y1", 0)
-    .attr("y2", innerH)
+    .attr("x1", 0)
+    .attr("x2", innerW)
     .style("opacity", 0);
 
-  const jurisdictions = data.map(d => d.jurisdiction);
+  const categories = data.map(d => d.jurisdiction);
 
   g.append("rect")
     .attr("class", "overlay")
@@ -529,20 +533,24 @@ function drawQ4(rows) {
     .style("fill", "none")
     .style("pointer-events", "all")
     .on("mousemove", (event) => {
-      const [mx] = d3.pointer(event);
+      const [, my] = d3.pointer(event);
 
-      const nearest = jurisdictions.reduce((a, b) =>
-        Math.abs(x(b) - mx) < Math.abs(x(a) - mx) ? b : a
-      );
-      const d = data.find(row => row.jurisdiction === nearest);
+      const nearestKey = categories.reduce((a, b) => {
+        const ay = y(a) + y.bandwidth() / 2;
+        const by = y(b) + y.bandwidth() / 2;
+        return Math.abs(by - my) < Math.abs(ay - my) ? b : a;
+      });
+
+      const d = data.find(row => row.jurisdiction === nearestKey);
+      const cy = y(nearestKey) + y.bandwidth() / 2;
 
       hoverLine
-        .attr("x1", x(nearest))
-        .attr("x2", x(nearest))
+        .attr("y1", cy)
+        .attr("y2", cy)
         .style("opacity", 1);
 
       tooltip.show(event,
-        `${nearest}: <b>${d.meanFine.toFixed(2)}</b>`);
+        `${d.jurisdiction}: <b>${valueFmtAvg(d.meanFine)}</b>`);
     })
     .on("mouseleave", () => {
       hoverLine.style("opacity", 0);

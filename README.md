@@ -191,16 +191,17 @@ As documented on the About page:
 
 ## 🤖 GenAI Declaration (COS30045 Requirement)
 
-AI assistance (ChatGPT) was used to:
+This project incorporated Generative AI tools (ChatGPT, Copilot) for the following purposes:
 
-* Help refine D3.js logic patterns
-* Assist in debugging interactive behaviour
-* Improve layout and CSS structure
-* Generate descriptive text for dashboard and methodology sections
+1. Drafting and reviewing explanatory text for the report and README documentation  
+2. Refining descriptions of visualisation methods, user interaction behaviour, and design rationale  
+3. Assisting with debugging and structuring D3.js functions  
+4. Formatting tables, diagrams, and paragraphs into academic-appropriate styles  
+5. Improving clarity, grammar, and readability of written content
 
-All final logic, testing, data processing, and validation were performed by the team.
+All final D3.js implementations, data processing decisions, layout structures, styling, and design changes were created, validated, and finalised by the student team.  
+AI tools were **not** used to generate or alter datasets, and were **not** used to automatically create visualisations.
 
----
 
 ## ✔ Licence
 
