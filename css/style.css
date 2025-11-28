@@ -16,9 +16,8 @@ body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
   color:var(--text);
-  background: radial-gradient(1200px 600px at 10% -10%, #223, transparent 70%),
-             radial-gradient(900px 700px at 110% 0%, #10233d, transparent 60%),
-             var(--bg);
+  /* Single background colour */
+  background: var(--bg);
 }
 
 .container{max-width:1100px;margin:0 auto;padding:24px}
@@ -90,27 +89,21 @@ body{
 .tooltip.show{opacity:1}
 .overlay { cursor: crosshair; }
 .tooltip { pointer-events: none; }
+
 /* ===== Mobile-first enhancements ===== */
 
-/* General container padding on small screens */
-.container {
-  padding: 1rem;
-}
+.container { padding: 1rem; }
 
-/* Cards and grid: stack vertically on narrow screens */
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr;         /* single column on mobile */
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
-.grid-stack .card {
-  margin: 0;                          /* reduce extra margins */
-}
+.grid-stack .card { margin: 0; }
 
-/* Controls row: turn into a 2-column grid on mobile */
 .controls {
   display: grid;
-  grid-template-columns: 1fr 1fr;     /* two controls per row */
+  grid-template-columns: 1fr 1fr;
   gap: .75rem;
 }
 .controls .control {
@@ -118,60 +111,115 @@ body{
   flex-direction: column;
 }
 
-/* Charts: fix a sensible height on mobile */
 .viz, .map-viz {
-  min-height: 260px;                  /* keep charts tall enough on phones */
+  min-height: 260px;
 }
 
-/* Header: compress spacing and wrap nav */
-.site-header {
-  padding: .6rem .9rem;
-}
-.site-header .brand span {
-  font-size: 1rem;
-}
-.nav {
-  display: flex;
-  gap: .6rem;
-  flex-wrap: wrap;
-}
-.nav a {
-  padding: .35rem .6rem;
-  border-radius: .5rem;
-}
+.site-header { padding: .6rem .9rem; }
+.site-header .brand span { font-size: 1rem; }
+.nav { display: flex; gap: .6rem; flex-wrap: wrap; }
+.nav a { padding: .35rem .6rem; border-radius: .5rem; }
 
-/* Legend swatches wrap instead of overflowing */
 .legend .row {
   display: flex;
   flex-wrap: wrap;
   gap: .35rem;
 }
 
-/* Footer tighter on mobile */
 .site-footer {
   padding: .75rem .9rem;
   font-size: .9rem;
 }
 
-/* ====== Wider screens (tablet/desktop) re-enable columns ====== */
 @media (min-width: 768px) {
-  .grid-2 {
-    grid-template-columns: 1fr 1fr;   /* two columns from tablet up */
-  }
-  .controls {
-    grid-template-columns: repeat(3, 1fr); /* three controls in a row */
-  }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .controls { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* ===== Clickable source link styling ===== */
-
 .source-link a {
-  color: var(--accent);                 /* theme blue (#5b9dff) */
+  color: var(--accent);
   text-decoration: underline;
   font-weight: 500;
 }
-
 .source-link a:hover {
-  color: var(--accent-2);               /* light green accent */
+  color: var(--accent-2);
   text-shadow: 0 0 6px rgba(126, 240, 209, 0.6);
 }
+
+/* ===== Chart visual styles ===== */
+
+.bar-default { fill: #5b9dff; }
+.bar-highlight { fill: #ffb74d; }
+
+.line-camera {
+  fill: none;
+  stroke: #5b9dff;
+  stroke-width: 2px;
+}
+.line-police {
+  fill: none;
+  stroke: #ffb74d;
+  stroke-width: 2px;
+}
+.q4-line {
+  fill: none;
+  stroke: #5b9dff;
+  stroke-width: 2px;
+}
+
+.area-fill {
+  fill: #5b9dff;
+  opacity: 0.35;
+}
+
+.point-default {
+  fill: #1f2937;
+  stroke: #5b9dff;
+}
+.point-highlight {
+  fill: #ffb74d;
+  stroke: #5b9dff;
+}
+
+.hover-line {
+  stroke: #cccccc;
+  stroke-width: 1px;
+  stroke-dasharray: 4 4;
+}
+
+.axis-label {
+  fill: #9fb0d8;
+  font-size: .8rem;
+}
+
+.legend-text {
+  font-size: .75rem;
+  fill: #dfe8ff;
+}
+.legend-swatch-camera { fill: #5b9dff; }
+.legend-swatch-police { fill: #ffb74d; }
+
+/* Value labels on bars (Q5) */
+.bar-label {
+  fill: #e8edff;
+  font-size: .75rem;
+  text-anchor: start;
+}
+/* Q2 extra series: Others */
+.line-others {
+  fill: none;
+  stroke: #c084fc;      /* purple */
+  stroke-width: 2px;
+}
+
+.legend-swatch-others {
+  fill: #c084fc;
+}
+
+/* Smaller text for pie-chart labels */
+.pie-label {
+  fill: #e8edff;
+  font-size: 0.7rem;
+  text-anchor: middle;
+}
+
