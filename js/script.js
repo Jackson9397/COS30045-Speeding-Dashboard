@@ -1,114 +1,8 @@
-/* COS30045 Speeding Dashboard — Question-based version
-   Uses:
-     ../data/q1.csv  (jurisdiction totals by year)
-     ../data/q2.csv  (enforcement type totals by year)
-     ../data/q3.csv  (2024 age group totals)
-     ../data/q4.csv  (2024 average fines by jurisdiction)
-     ../data/q5.csv  (2024 age 0–16 totals by jurisdiction)
-*/
+/* COS30045 Speeding Dashboard — No text answers anywhere */
 
 const fmt = d3.format(",");
 
-// ---------- Generic bar chart helper (for Q1 only now) ----------
-function renderBarChart(config) {
-  const {
-    elId,
-    data,
-    xField,
-    yField,
-    xLabelRotate = 0,
-    highlightKey = null,
-    answerId = null,
-    answerText = null,
-    yLabel = "",
-    valueFormat = (v) => fmt(v)
-  } = config;
-
-  const container = d3.select("#" + elId);
-  if (container.empty()) return;
-
-  container.selectAll("*").remove();
-
-  const node = container.node();
-  const width = (node && node.clientWidth) ? node.clientWidth : 600;
-  const height = 280;
-  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
-  const innerW = width - margin.left - margin.right;
-  const innerH = height - margin.top - margin.bottom;
-
-  const svg = container
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
-
-  const g = svg.append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  // Scales
-  const x = d3.scaleBand()
-    .domain(data.map(d => d[xField]))
-    .range([0, innerW])
-    .padding(0.2);
-
-  const maxY = d3.max(data, d => d[yField]) || 0;
-  const y = d3.scaleLinear()
-    .domain([0, maxY * 1.1])
-    .nice()
-    .range([innerH, 0]);
-
-  // Axes
-  g.append("g")
-    .attr("transform", `translate(0,${innerH})`)
-    .call(d3.axisBottom(x))
-    .selectAll("text")
-    .attr("transform", `rotate(${xLabelRotate})`)
-    .style("text-anchor", xLabelRotate ? "end" : "middle");
-
-  g.append("g")
-    .call(d3.axisLeft(y).ticks(6).tickFormat(valueFormat));
-
-  if (yLabel) {
-    g.append("text")
-      .attr("x", -innerH / 2)
-      .attr("y", -margin.left + 18)
-      .attr("transform", "rotate(-90)")
-      .attr("text-anchor", "middle")
-      .attr("fill", "#9fb0d8")
-      .style("font-size", ".8rem")
-      .text(yLabel);
-  }
-
-  // Bars
-  const tooltip = createTooltip();
-
-  g.selectAll(".bar")
-    .data(data)
-    .enter()
-    .append("rect")
-    .attr("class", "bar")
-    .attr("x", d => x(d[xField]))
-    .attr("y", d => y(d[yField]))
-    .attr("width", x.bandwidth())
-    .attr("height", d => innerH - y(d[yField]))
-    .attr("fill", d => {
-      if (!highlightKey) return "#5b9dff";
-      return d[xField] === highlightKey ? "#ffb74d" : "#5b9dff";
-    })
-    .on("mousemove", (event, d) => {
-      tooltip.show(event,
-        `${d[xField]}: <b>${valueFormat(d[yField])}</b>`
-      );
-    })
-    .on("mouseleave", () => tooltip.hide());
-
-  // Optional text answer
-  if (answerId && answerText) {
-    const el = document.getElementById(answerId);
-    if (el) el.textContent = answerText;
-  }
-}
-
-// Simple tooltip helper
+// ---------- Tooltip ----------
 function createTooltip() {
   let tip = d3.select(".tooltip");
   if (tip.empty()) {
@@ -125,19 +19,142 @@ function createTooltip() {
   };
 }
 
-// ---------- Q1: Which jurisdiction has the highest fine amount imposed? ----------
+// ---------- Generic Bar Component (Q1) ----------
+function renderBarChart(config) {
+  const {
+    elId, data,
+    xField, yField,
+    highlightKey = null,
+    xLabelRotate = 0,
+    yLabel = "",
+    valueFormat = fmt
+  } = config;
+
+  const container = d3.select("#" + elId);
+  if (container.empty()) return;
+
+  container.selectAll("*").remove();
+  const node = container.node();
+
+  const width = node.clientWidth || 600;
+  const height = 280;
+
+  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = container.append("svg")
+    .attr("width", width).attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleBand()
+    .domain(data.map(d => d[xField]))
+    .range([0, innerW])
+    .padding(0.2);
+
+  const maxY = d3.max(data, d => d[yField]) || 0;
+  const y = d3.scaleLinear()
+    .domain([0, maxY * 1.1]).nice()
+    .range([innerH, 0]);
+
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("transform", `rotate(${xLabelRotate})`)
+    .style("text-anchor", xLabelRotate ? "end" : "middle");
+
+  g.append("g")
+    .call(d3.axisLeft(y).ticks(6).tickFormat(valueFormat));
+
+  if (yLabel) {
+    g.append("text")
+      .attr("class", "axis-label")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -innerH / 2)
+      .attr("y", -margin.left + 18)
+      .attr("text-anchor", "middle")
+      .text(yLabel);
+  }
+
+  const tooltip = createTooltip();
+
+  // Bars
+  g.selectAll("rect.bar")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("class", d =>
+      "bar " + (d[xField] === highlightKey ? "bar-highlight" : "bar-default")
+    )
+    .attr("x", d => x(d[xField]))
+    .attr("y", d => y(d[yField]))
+    .attr("width", x.bandwidth())
+    .attr("height", d => innerH - y(d[yField]));
+
+  // Value labels at top of each bar (Q1)
+  g.selectAll("text.bar-label")
+    .data(data)
+    .enter()
+    .append("text")
+    .attr("class", "bar-label")
+    .attr("x", d => x(d[xField]) + x.bandwidth() / 2)
+    .attr("y", d => y(d[yField]) - 4)
+    .attr("text-anchor", "middle")
+    .text(d => valueFormat(d[yField]));
+
+  // Hover guideline + overlay
+  const hoverLine = g.append("line")
+    .attr("class", "hover-line")
+    .attr("y1", 0)
+    .attr("y2", innerH)
+    .style("opacity", 0);
+
+  const categories = data.map(d => d[xField]);
+
+  g.append("rect")
+    .attr("class", "overlay")
+    .attr("width", innerW)
+    .attr("height", innerH)
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .on("mousemove", (event) => {
+      const [mx] = d3.pointer(event);
+
+      const nearestKey = categories.reduce((a, b) => {
+        const ca = x(a) + x.bandwidth() / 2;
+        const cb = x(b) + x.bandwidth() / 2;
+        return Math.abs(cb - mx) < Math.abs(ca - mx) ? b : a;
+      });
+
+      const d = data.find(row => row[xField] === nearestKey);
+      const cx = x(nearestKey) + x.bandwidth() / 2;
+
+      hoverLine
+        .attr("x1", cx).attr("x2", cx)
+        .style("opacity", 1);
+
+      tooltip.show(event, `${d[xField]}: <b>${valueFormat(d[yField])}</b>`);
+    })
+    .on("mouseleave", () => {
+      hoverLine.style("opacity", 0);
+      tooltip.hide();
+    });
+}
+
+// ---------- Q1 ----------
 function drawQ1(rows) {
   if (!rows || !rows.length) return;
 
   const cols = Object.keys(rows[0]).filter(c => c !== "YEAR");
 
-  const data = cols.map(col => {
-    const total = d3.sum(rows, r => +r[col] || 0);
-    const juris = col.split("+")[0]; // e.g. "NSW+Sum(FINES)" → "NSW"
-    return { jurisdiction: juris, total };
-  });
+  const data = cols.map(col => ({
+    jurisdiction: col.split("+")[0],
+    total: d3.sum(rows, r => +r[col] || 0)
+  })).sort((a, b) => b.total - a.total);
 
-  data.sort((a, b) => b.total - a.total);
   const top = data[0];
 
   renderBarChart({
@@ -146,73 +163,34 @@ function drawQ1(rows) {
     xField: "jurisdiction",
     yField: "total",
     highlightKey: top ? top.jurisdiction : null,
-    answerId: "q1Answer",
-    answerText: top
-      ? `Answer: ${top.jurisdiction} has the highest total speeding fines imposed (${fmt(top.total)} fines across all years).`
-      : "Answer: Data not available.",
     yLabel: "Total fines (all years)",
-    valueFormat: v => fmt(v)
+    valueFormat: fmt
   });
 }
 
-// ---------- Q2: Changes in enforcement measures (2023 vs 2024, camera vs police only) ----------
+// ---------- Q2 (Trend Line 2008–2024 with Camera / Police / Others) ----------
 function drawQ2(rows) {
-  if (!rows || !rows.length) return;
+  if (!rows.length) return;
 
   rows.forEach(r => r.YEAR = +r.YEAR);
 
-  const targetYears = [2023, 2024];
-  const filtered = rows.filter(r => targetYears.includes(r.YEAR));
+  const data = rows.map(r => ({
+    year: r.YEAR,
+    camera: +r["camera-issued fine+Sum(FINES)"] || 0,
+    police: +r["police-issued fine+Sum(FINES)"] || 0,
+    others: +r["others+Sum(FINES)"] || 0
+  })).sort((a, b) => a.year - b.year);
 
-  const categories = [
-    { key: "camera-issued fine+Sum(FINES)", label: "Camera-issued" },
-    { key: "police-issued fine+Sum(FINES)", label: "Police-issued" }
-  ];
+  const years = data.map(d => d.year);
+  const byYear = new Map(data.map(d => [d.year, d]));
 
-  // Flattened data for grouped columns
-  const data = [];
-  filtered.forEach(row => {
-    categories.forEach(cat => {
-      const value = +row[cat.key] || 0;
-      data.push({
-        year: row.YEAR,
-        type: cat.label,
-        value
-      });
-    });
-  });
-
-  // Precompute 2023 vs 2024 differences for answer text
-  const byYearType = {};
-  data.forEach(d => {
-    const k = `${d.type}-${d.year}`;
-    byYearType[k] = d.value;
-  });
-
-  const parts = categories.map(cat => {
-    const v23 = byYearType[`${cat.label}-2023`] || 0;
-    const v24 = byYearType[`${cat.label}-2024`] || 0;
-    const diff = v24 - v23;
-    if (diff > 0) {
-      return `${cat.label} increased by ${fmt(diff)} fines from 2023 to 2024`;
-    } else if (diff < 0) {
-      return `${cat.label} decreased by ${fmt(Math.abs(diff))} fines from 2023 to 2024`;
-    }
-    return `${cat.label} stayed about the same between 2023 and 2024`;
-  });
-
-  const answerText = "Answer: " + parts.join("; ") + ".";
-
-  // ---- Draw grouped column chart ----
   const container = d3.select("#q2Chart");
-  if (container.empty()) return;
-
   container.selectAll("*").remove();
 
-  const node = container.node();
-  const width = (node && node.clientWidth) ? node.clientWidth : 640;
-  const height = 320;
-  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+  const width = container.node().clientWidth || 640;
+  const height = 340;
+
+  const margin = { top: 36, right: 40, bottom: 60, left: 80 };  // a bit more top room
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
@@ -223,113 +201,149 @@ function drawQ2(rows) {
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const years = targetYears;
-  const types = categories.map(c => c.label);
+  const x = d3.scaleLinear()
+    .domain(d3.extent(years))
+    .range([0, innerW]);
 
-  const x0 = d3.scaleBand()
-    .domain(years)
-    .range([0, innerW])
-    .padding(0.2);
-
-  const x1 = d3.scaleBand()
-    .domain(types)
-    .range([0, x0.bandwidth()])
-    .padding(0.1);
-
-  const maxY = d3.max(data, d => d.value) || 0;
   const y = d3.scaleLinear()
-    .domain([0, maxY * 1.1])
-    .nice()
-    .range([innerH, 0]);
+    .domain([
+      0,
+      d3.max(data, d => Math.max(d.camera, d.police, d.others)) * 1.1
+    ])
+    .range([innerH, 0])
+    .nice();
 
-  const color = d3.scaleOrdinal()
-    .domain(types)
-    .range(["#5b9dff", "#ffb74d"]);
+  const lineCamera = d3.line()
+    .x(d => x(d.year))
+    .y(d => y(d.camera))
+    .curve(d3.curveMonotoneX);
+
+  const linePolice = d3.line()
+    .x(d => x(d.year))
+    .y(d => y(d.police))
+    .curve(d3.curveMonotoneX);
+
+  const lineOthers = d3.line()
+    .x(d => x(d.year))
+    .y(d => y(d.others))
+    .curve(d3.curveMonotoneX);
 
   const tooltip = createTooltip();
 
+  // Axes
   g.append("g")
     .attr("transform", `translate(0,${innerH})`)
-    .call(d3.axisBottom(x0).tickFormat(d3.format("d")));
+    .call(d3.axisBottom(x).tickFormat(d3.format("d")));
 
   g.append("g")
-    .call(d3.axisLeft(y).ticks(6).tickFormat(v => fmt(v)));
+    .call(d3.axisLeft(y).ticks(6).tickFormat(fmt));
 
   g.append("text")
+    .attr("class", "axis-label")
+    .attr("transform", "rotate(-90)")
     .attr("x", -innerH / 2)
     .attr("y", -margin.left + 18)
-    .attr("transform", "rotate(-90)")
     .attr("text-anchor", "middle")
-    .attr("fill", "#9fb0d8")
-    .style("font-size", ".8rem")
     .text("Number of fines");
 
-  const yearGroups = g.selectAll(".year-group")
-    .data(years)
-    .enter()
-    .append("g")
-    .attr("class", "year-group")
-    .attr("transform", d => `translate(${x0(d)},0)`);
+  // Lines
+  g.append("path")
+    .datum(data)
+    .attr("class", "line-camera")
+    .attr("d", lineCamera);
 
-  yearGroups.selectAll("rect")
-    .data(year => data.filter(d => d.year === year))
-    .enter()
-    .append("rect")
-    .attr("x", d => x1(d.type))
-    .attr("y", d => y(d.value))
-    .attr("width", x1.bandwidth())
-    .attr("height", d => innerH - y(d.value))
-    .attr("fill", d => color(d.type))
-    .on("mousemove", (event, d) => {
-      tooltip.show(event,
-        `${d.year} — ${d.type}: <b>${fmt(d.value)}</b> fines`
-      );
-    })
-    .on("mouseleave", () => tooltip.hide());
+  g.append("path")
+    .datum(data)
+    .attr("class", "line-police")
+    .attr("d", linePolice);
 
-  // Legend
-  const legend = g.append("g")
-    .attr("transform", `translate(${innerW - 150}, 0)`);
+  g.append("path")
+    .datum(data)
+    .attr("class", "line-others")
+    .attr("d", lineOthers);
 
-  types.forEach((t, i) => {
-    const lg = legend.append("g")
-      .attr("transform", `translate(0, ${i * 18})`);
-    lg.append("rect")
+  // Legend (move ABOVE the plotting area so it doesn't touch the lines)
+  const legend = svg.append("g")
+    .attr("transform", `translate(${margin.left + innerW - 180}, 10)`); // top-right, outside chart
+
+  [
+    { label: "Camera-issued", cls: "legend-swatch-camera" },
+    { label: "Police-issued", cls: "legend-swatch-police" },
+    { label: "Others",        cls: "legend-swatch-others" }
+  ].forEach((item, i) => {
+    const row = legend.append("g")
+      .attr("transform", `translate(0,${i * 18})`);
+    row.append("rect")
       .attr("width", 12)
       .attr("height", 12)
-      .attr("fill", color(t));
-    lg.append("text")
+      .attr("class", item.cls);
+    row.append("text")
+      .attr("class", "legend-text")
       .attr("x", 18)
       .attr("y", 10)
-      .style("font-size", ".75rem")
-      .attr("fill", "#dfe8ff")
-      .text(t);
+      .text(item.label);
   });
 
-  const el = document.getElementById("q2Answer");
-  if (el) el.textContent = answerText;
+  // Hover vertical guideline + tooltip
+  const hoverLine = g.append("line")
+    .attr("class", "hover-line")
+    .attr("y1", 0)
+    .attr("y2", innerH)
+    .style("opacity", 0);
+
+  g.append("rect")
+    .attr("class", "overlay")
+    .attr("width", innerW)
+    .attr("height", innerH)
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .on("mousemove", (event) => {
+      const [mx] = d3.pointer(event);
+      const yr = x.invert(mx);
+
+      const nearest = years.reduce((a, b) =>
+        Math.abs(b - yr) < Math.abs(a - yr) ? b : a
+      );
+      const d = byYear.get(nearest);
+
+      hoverLine
+        .attr("x1", x(nearest))
+        .attr("x2", x(nearest))
+        .style("opacity", 1);
+
+      tooltip.show(
+        event,
+        `<b>${nearest}</b><br>
+         Camera: ${fmt(d.camera)}<br>
+         Police: ${fmt(d.police)}<br>
+         Others: ${fmt(d.others)}`
+      );
+    })
+    .on("mouseleave", () => {
+      hoverLine.style("opacity", 0);
+      tooltip.hide();
+    });
 }
 
-// ---------- Q3: Age group with most records in 2024 (pie chart) ----------
+
+// ---------- Q3 (Pie with hover pop-out + labels) ----------
+// ---------- Q3 (Pie with hover pop-out + smart labels) ----------
 function drawQ3(rows) {
-  if (!rows || !rows.length) return;
+  if (!rows.length) return;
+
+  const container = d3.select("#q3Chart");
+  container.selectAll("*").remove();
 
   const data = rows.map(r => ({
     age: r.AGE_GROUP,
     fines: +r["Sum(FINES)"] || 0
-  }));
+  })).sort((a, b) => b.fines - a.fines);
 
-  data.sort((a, b) => b.fines - a.fines);
-  const top = data[0];
+  const total = d3.sum(data, d => d.fines);
 
-  const container = d3.select("#q3Chart");
-  if (container.empty()) return;
-  container.selectAll("*").remove();
-
-  const node = container.node();
-  const width = (node && node.clientWidth) ? node.clientWidth : 500;
+  const width = container.node().clientWidth || 500;
   const height = 300;
-  const radius = Math.min(width, height) / 2 - 20;
+  const radius = Math.min(width, height) / 2 - 24;
 
   const svg = container.append("svg")
     .attr("width", width)
@@ -342,97 +356,100 @@ function drawQ3(rows) {
     .domain(data.map(d => d.age))
     .range(d3.schemeSet2);
 
-  const pie = d3.pie()
-    .value(d => d.fines)
-    .sort(null);
+  const pie = d3.pie().value(d => d.fines).sort(null);
+  const arcs = pie(data);
 
-  const arc = d3.arc()
-    .innerRadius(0)
-    .outerRadius(radius);
+  const arc = d3.arc().innerRadius(0).outerRadius(radius);
+  const labelArcInner = d3.arc().innerRadius(radius * 0.6).outerRadius(radius * 0.6);
+  const labelArcOuter = d3.arc().innerRadius(radius * 1.12).outerRadius(radius * 1.12);
 
   const tooltip = createTooltip();
 
-  const arcs = g.selectAll("path")
-    .data(pie(data))
+  // Slices
+  g.selectAll("path.slice")
+    .data(arcs)
     .enter()
     .append("path")
+    .attr("class", "slice")
     .attr("d", arc)
     .attr("fill", d => color(d.data.age))
     .attr("stroke", "#111827")
     .attr("stroke-width", 1)
+    .on("mouseover", (event, d) => {
+      d3.select(event.currentTarget)
+        .transition().duration(120)
+        .attr("transform", "scale(1.04)");
+      tooltip.show(event,
+        `${d.data.age}: <b>${fmt(d.data.fines)}</b> fines`);
+    })
     .on("mousemove", (event, d) => {
       tooltip.show(event,
-        `${d.data.age}: <b>${fmt(d.data.fines)}</b> fines`
-      );
+        `${d.data.age}: <b>${fmt(d.data.fines)}</b> fines`);
     })
-    .on("mouseleave", () => tooltip.hide());
+    .on("mouseleave", (event) => {
+      d3.select(event.currentTarget)
+        .transition().duration(120)
+        .attr("transform", "scale(1)");
+      tooltip.hide();
+    });
 
-  // Legend
+  // Value labels – inside for big slices, just outside for small ones
+  g.selectAll("text.pie-label")
+    .data(arcs)
+    .enter()
+    .append("text")
+    .attr("class", "pie-label")
+    .attr("transform", d => {
+      const fraction = d.data.fines / total;
+      const targetArc = fraction < 0.12 ? labelArcOuter : labelArcInner;
+      const [x, y] = targetArc.centroid(d);
+      return `translate(${x},${y})`;
+    })
+    .text(d => fmt(d.data.fines));
+
+  // Legend (same as before)
   const legend = svg.append("g")
-    .attr("transform", `translate(10,10)`);
+    .attr("transform", "translate(10,10)");
 
   data.forEach((d, i) => {
-    const lg = legend.append("g")
-      .attr("transform", `translate(0, ${i * 18})`);
-    lg.append("rect")
+    const row = legend.append("g")
+      .attr("transform", `translate(0,${i * 18})`);
+    row.append("rect")
       .attr("width", 12)
       .attr("height", 12)
       .attr("fill", color(d.age));
-    lg.append("text")
+    row.append("text")
+      .attr("class", "legend-text")
       .attr("x", 18)
       .attr("y", 10)
-      .style("font-size", ".75rem")
-      .attr("fill", "#dfe8ff")
       .text(d.age);
   });
-
-  const answerEl = document.getElementById("q3Answer");
-  if (answerEl && top) {
-    answerEl.textContent =
-      `Answer: The ${top.age} age group has the most speeding fine records in 2024 (${fmt(top.fines)} fines).`;
-  } else if (answerEl) {
-    answerEl.textContent = "Answer: Data not available.";
-  }
 }
 
-// ---------- Q4: States with highest average fine amounts in 2024 (area chart) ----------
+
+// ---------- Q4 (Area + Line with guideline) ----------
 function drawQ4(rows) {
-  if (!rows || !rows.length) return;
+  if (!rows.length) return;
+
+  const container = d3.select("#q4Chart");
+  container.selectAll("*").remove();
 
   const data = rows.map(r => ({
     jurisdiction: r.JURISDICTION,
     meanFine: +r["Mean(FINES)"] || 0
   }));
 
-  // Sort by jurisdiction name or by meanFine; here we sort alphabetically for a smoother x-axis
-  data.sort((a, b) => d3.ascending(a.jurisdiction, b.jurisdiction));
-
-  const top = [...data].sort((a, b) => b.meanFine - a.meanFine)[0];
-  const top3 = [...data].sort((a, b) => b.meanFine - a.meanFine).slice(0, 3);
-
-  const topList = top3.map(d =>
-    `${d.jurisdiction} (${d.meanFine.toFixed(2)})`
-  ).join(", ");
-
-  const answerText = top
-    ? `Answer: ${top.jurisdiction} has the highest average fine amount in 2024 (${top.meanFine.toFixed(2)}). Top states by average fine are: ${topList}.`
-    : "Answer: Data not available.";
-
-  const container = d3.select("#q4Chart");
-  if (container.empty()) return;
-  container.selectAll("*").remove();
-
-  const node = container.node();
-  const width = (node && node.clientWidth) ? node.clientWidth : 640;
+  const width = container.node().clientWidth || 640;
   const height = 320;
+
   const margin = { top: 24, right: 20, bottom: 60, left: 80 };
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
-  const svg = container.append("svg")
-    .attr("width", width)
-    .attr("height", height);
+  data.sort((a, b) => a.jurisdiction.localeCompare(b.jurisdiction));
 
+  const svg = container.append("svg")
+    .attr("width", width).attr("height", height);
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
@@ -441,11 +458,10 @@ function drawQ4(rows) {
     .range([0, innerW])
     .padding(0.5);
 
-  const maxY = d3.max(data, d => d.meanFine) || 0;
   const y = d3.scaleLinear()
-    .domain([0, maxY * 1.1])
-    .nice()
-    .range([innerH, 0]);
+    .domain([0, d3.max(data, d => d.meanFine) * 1.1])
+    .range([innerH, 0])
+    .nice();
 
   const area = d3.area()
     .x(d => x(d.jurisdiction))
@@ -460,39 +476,33 @@ function drawQ4(rows) {
 
   const tooltip = createTooltip();
 
-  // Axes
   g.append("g")
     .attr("transform", `translate(0,${innerH})`)
     .call(d3.axisBottom(x));
 
   g.append("g")
-    .call(d3.axisLeft(y).ticks(6).tickFormat(v => v.toFixed(2)));
+    .call(d3.axisLeft(y).ticks(6));
 
   g.append("text")
+    .attr("class", "axis-label")
+    .attr("transform", "rotate(-90)")
     .attr("x", -innerH / 2)
     .attr("y", -margin.left + 18)
-    .attr("transform", "rotate(-90)")
     .attr("text-anchor", "middle")
-    .attr("fill", "#9fb0d8")
-    .style("font-size", ".8rem")
-    .text("Average fine amount in 2024");
+    .text("Average fine amount (2024)");
 
-  // Area
   g.append("path")
     .datum(data)
-    .attr("fill", "#5b9dff")
-    .attr("opacity", 0.35)
+    .attr("class", "area-fill")
     .attr("d", area);
 
-  // Line
   g.append("path")
     .datum(data)
-    .attr("fill", "none")
-    .attr("stroke", "#5b9dff")
-    .attr("stroke-width", 2)
+    .attr("class", "q4-line")
     .attr("d", line);
 
-  // Points
+  const top = [...data].sort((a, b) => b.meanFine - a.meanFine)[0];
+
   g.selectAll("circle")
     .data(data)
     .enter()
@@ -500,117 +510,162 @@ function drawQ4(rows) {
     .attr("cx", d => x(d.jurisdiction))
     .attr("cy", d => y(d.meanFine))
     .attr("r", d => d.jurisdiction === top.jurisdiction ? 5 : 3)
-    .attr("fill", d => d.jurisdiction === top.jurisdiction ? "#ffb74d" : "#1f2937")
-    .attr("stroke", "#5b9dff")
-    .on("mousemove", (event, d) => {
-      tooltip.show(event,
-        `${d.jurisdiction}: <b>${d.meanFine.toFixed(2)}</b>`
-      );
-    })
-    .on("mouseleave", () => tooltip.hide());
+    .attr("class", d =>
+      d.jurisdiction === top.jurisdiction ? "point-highlight" : "point-default"
+    );
 
-  const el = document.getElementById("q4Answer");
-  if (el) el.textContent = answerText;
+  const hoverLine = g.append("line")
+    .attr("class", "hover-line")
+    .attr("y1", 0)
+    .attr("y2", innerH)
+    .style("opacity", 0);
+
+  const jurisdictions = data.map(d => d.jurisdiction);
+
+  g.append("rect")
+    .attr("class", "overlay")
+    .attr("width", innerW)
+    .attr("height", innerH)
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .on("mousemove", (event) => {
+      const [mx] = d3.pointer(event);
+
+      const nearest = jurisdictions.reduce((a, b) =>
+        Math.abs(x(b) - mx) < Math.abs(x(a) - mx) ? b : a
+      );
+      const d = data.find(row => row.jurisdiction === nearest);
+
+      hoverLine
+        .attr("x1", x(nearest))
+        .attr("x2", x(nearest))
+        .style("opacity", 1);
+
+      tooltip.show(event,
+        `${nearest}: <b>${d.meanFine.toFixed(2)}</b>`);
+    })
+    .on("mouseleave", () => {
+      hoverLine.style("opacity", 0);
+      tooltip.hide();
+    });
 }
 
-// ---------- Q5: 0–16 age group, most records by state in 2024 (line chart) ----------
+// ---------- Q5 (Horizontal bar, sqrt scale, labels, guideline) ----------
 function drawQ5(rows) {
-  if (!rows || !rows.length) return;
+  if (!rows.length) return;
 
   const data = rows.map(r => ({
     jurisdiction: r.JURISDICTION,
     fines: +r["Sum(FINES)"] || 0
-  }));
+  })).sort((a, b) => b.fines - a.fines);
 
-  // Sort by jurisdiction for line ordering
-  data.sort((a, b) => d3.ascending(a.jurisdiction, b.jurisdiction));
-
-  const top = [...data].sort((a, b) => b.fines - a.fines)[0];
+  const top = data[0];
 
   const container = d3.select("#q5Chart");
-  if (container.empty()) return;
   container.selectAll("*").remove();
 
-  const node = container.node();
-  const width = (node && node.clientWidth) ? node.clientWidth : 640;
+  const width = container.node().clientWidth || 640;
   const height = 320;
-  const margin = { top: 24, right: 20, bottom: 60, left: 80 };
+
+  const margin = { top: 24, right: 30, bottom: 40, left: 120 };
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
   const svg = container.append("svg")
-    .attr("width", width)
-    .attr("height", height);
-
+    .attr("width", width).attr("height", height);
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scalePoint()
+  const y = d3.scaleBand()
     .domain(data.map(d => d.jurisdiction))
-    .range([0, innerW])
-    .padding(0.5);
+    .range([0, innerH])
+    .padding(0.2);
 
-  const maxY = d3.max(data, d => d.fines) || 0;
-  const y = d3.scaleLinear()
-    .domain([0, maxY * 1.1])
-    .nice()
-    .range([innerH, 0]);
-
-  const line = d3.line()
-    .x(d => x(d.jurisdiction))
-    .y(d => y(d.fines))
-    .curve(d3.curveMonotoneX);
+  const maxX = d3.max(data, d => d.fines) || 0;
+  const x = d3.scaleSqrt()
+    .domain([0, maxX])
+    .range([0, innerW]);
 
   const tooltip = createTooltip();
 
-  // Axes
+  g.append("g").call(d3.axisLeft(y));
+
   g.append("g")
     .attr("transform", `translate(0,${innerH})`)
-    .call(d3.axisBottom(x));
-
-  g.append("g")
-    .call(d3.axisLeft(y).ticks(6).tickFormat(v => fmt(v)));
+    .call(d3.axisBottom(x).ticks(6).tickFormat(fmt));
 
   g.append("text")
-    .attr("x", -innerH / 2)
-    .attr("y", -margin.left + 18)
-    .attr("transform", "rotate(-90)")
+    .attr("class", "axis-label")
+    .attr("x", innerW / 2)
+    .attr("y", innerH + 32)
     .attr("text-anchor", "middle")
-    .attr("fill", "#9fb0d8")
-    .style("font-size", ".8rem")
-    .text("Fines in 2024 (age 0–16)");
+    .text("Fines in 2024 (age 0–16) — sqrt scale");
 
-  // Line
-  g.append("path")
-    .datum(data)
-    .attr("fill", "none")
-    .attr("stroke", "#5b9dff")
-    .attr("stroke-width", 2)
-    .attr("d", line);
-
-  // Points
-  g.selectAll("circle")
+  g.selectAll("rect.bar")
     .data(data)
     .enter()
-    .append("circle")
-    .attr("cx", d => x(d.jurisdiction))
-    .attr("cy", d => y(d.fines))
-    .attr("r", d => d.jurisdiction === top.jurisdiction ? 5 : 3)
-    .attr("fill", d => d.jurisdiction === top.jurisdiction ? "#ffb74d" : "#1f2937")
-    .attr("stroke", "#5b9dff")
-    .on("mousemove", (event, d) => {
-      tooltip.show(event,
-        `${d.jurisdiction}: <b>${fmt(d.fines)}</b> fines`
-      );
-    })
-    .on("mouseleave", () => tooltip.hide());
+    .append("rect")
+    .attr("class", d =>
+      "bar " + (d.jurisdiction === top.jurisdiction ? "bar-highlight" : "bar-default")
+    )
+    .attr("x", 0)
+    .attr("y", d => y(d.jurisdiction))
+    .attr("width", d => x(d.fines))
+    .attr("height", y.bandwidth());
 
-  const el = document.getElementById("q5Answer");
-  if (el) {
-    el.textContent = top
-      ? `Answer: ${top.jurisdiction} has the most speeding fine records for the 0–16 age group in 2024 (${fmt(top.fines)} fines).`
-      : "Answer: Data not available.";
-  }
+  // Value labels on bars
+  g.selectAll("text.bar-label")
+    .data(data)
+    .enter()
+    .append("text")
+    .attr("class", "bar-label")
+    .attr("x", d => {
+      const pos = x(d.fines) + 6;
+      return pos > innerW - 40 ? innerW - 40 : pos;
+    })
+    .attr("y", d => y(d.jurisdiction) + y.bandwidth() / 2)
+    .attr("dy", "0.35em")
+    .text(d => fmt(d.fines));
+
+  // Hover horizontal guideline
+  const hoverLine = g.append("line")
+    .attr("class", "hover-line")
+    .attr("x1", 0)
+    .attr("x2", innerW)
+    .style("opacity", 0);
+
+  const categories = data.map(d => d.jurisdiction);
+
+  g.append("rect")
+    .attr("class", "overlay")
+    .attr("width", innerW)
+    .attr("height", innerH)
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .on("mousemove", (event) => {
+      const [, my] = d3.pointer(event);
+
+      const nearestKey = categories.reduce((a, b) => {
+        const ay = y(a) + y.bandwidth() / 2;
+        const by = y(b) + y.bandwidth() / 2;
+        return Math.abs(by - my) < Math.abs(ay - my) ? b : a;
+      });
+
+      const d = data.find(row => row.jurisdiction === nearestKey);
+      const cy = y(nearestKey) + y.bandwidth() / 2;
+
+      hoverLine
+        .attr("y1", cy)
+        .attr("y2", cy)
+        .style("opacity", 1);
+
+      tooltip.show(event,
+        `${d.jurisdiction}: <b>${fmt(d.fines)}</b> fines`);
+    })
+    .on("mouseleave", () => {
+      hoverLine.style("opacity", 0);
+      tooltip.hide();
+    });
 }
 
 // ---------- Init ----------
