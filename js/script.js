@@ -95,18 +95,17 @@ function renderBarChart(config) {
     .attr("height", d => innerH - y(d[yField]));
 
   // Value labels at top of each bar (Q1)
-      g.selectAll("text.bar-label")
+  g.selectAll("text.bar-label")
     .data(data)
     .enter()
     .append("text")
     .attr("class", "bar-label")
-    .attr("x", d => x(d[xField]) + x.bandwidth() / 2)  
-    .attr("y", d => y(d[yField]) - 10)                  
+    .attr("x", d => x(d[xField]) + x.bandwidth() / 2)
+    .attr("y", d => y(d[yField]) - 10)
     .attr("text-anchor", "middle")
-    .style("text-anchor", "middle")                     
-    .style("dominant-baseline", "central")              
+    .style("text-anchor", "middle")
+    .style("dominant-baseline", "central")
     .text(d => valueFormat(d[yField]));
-
 
   // Hover guideline + overlay
   const hoverLine = g.append("line")
@@ -676,6 +675,135 @@ function drawQ5(rows) {
     });
 }
 
+// ---------- Q6 (Horizontal bar: fines per 10,000 licences in 2024) ----------
+function drawQ6(rows) {
+  if (!rows.length) return;
+
+  const container = d3.select("#q6Chart");
+  container.selectAll("*").remove();
+
+  // Only 2024 values
+  const data = rows
+    .filter(r => +r.YEAR === 2024)
+    .map(r => ({
+      jurisdiction: r.JURISDICTION,
+      rate: +r.FINE_PER_10K || 0
+    }))
+    .sort((a, b) => b.rate - a.rate);
+
+  if (!data.length) return;
+
+  const top = data[0];
+
+  const width = container.node().clientWidth || 640;
+  const height = 320;
+
+  const margin = { top: 24, right: 40, bottom: 40, left: 120 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = container.append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const y = d3.scaleBand()
+    .domain(data.map(d => d.jurisdiction))
+    .range([0, innerH])
+    .padding(0.2);
+
+  const maxX = d3.max(data, d => d.rate) || 0;
+  const x = d3.scaleLinear()
+    .domain([0, maxX * 1.1])
+    .range([0, innerW])
+    .nice();
+
+  const tooltip = createTooltip();
+  const valueFmtRate = d3.format(".1f");
+
+  g.append("g").call(d3.axisLeft(y));
+
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(6).tickFormat(valueFmtRate));
+
+  g.append("text")
+    .attr("class", "axis-label")
+    .attr("x", innerW / 2)
+    .attr("y", innerH + 32)
+    .attr("text-anchor", "middle")
+    .text("Average speeding fines per 10,000 licences in 2024");
+
+  // Bars
+  g.selectAll("rect.bar")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("class", d =>
+      "bar " + (d.jurisdiction === top.jurisdiction ? "bar-highlight" : "bar-default")
+    )
+    .attr("x", 0)
+    .attr("y", d => y(d.jurisdiction))
+    .attr("width", d => x(d.rate))
+    .attr("height", y.bandwidth());
+
+  // Value labels
+  g.selectAll("text.bar-label")
+    .data(data)
+    .enter()
+    .append("text")
+    .attr("class", "bar-label")
+    .attr("x", d => {
+      const pos = x(d.rate) + 6;
+      return pos > innerW - 40 ? innerW - 40 : pos;
+    })
+    .attr("y", d => y(d.jurisdiction) + y.bandwidth() / 2)
+    .attr("dy", "0.35em")
+    .text(d => valueFmtRate(d.rate));
+
+  // Hover horizontal guideline
+  const hoverLine = g.append("line")
+    .attr("class", "hover-line")
+    .attr("x1", 0)
+    .attr("x2", innerW)
+    .style("opacity", 0);
+
+  const categories = data.map(d => d.jurisdiction);
+
+  g.append("rect")
+    .attr("class", "overlay")
+    .attr("width", innerW)
+    .attr("height", innerH)
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .on("mousemove", (event) => {
+      const [, my] = d3.pointer(event);
+
+      const nearestKey = categories.reduce((a, b) => {
+        const ay = y(a) + y.bandwidth() / 2;
+        const by = y(b) + y.bandwidth() / 2;
+        return Math.abs(by - my) < Math.abs(ay - my) ? b : a;
+      });
+
+      const d = data.find(row => row.jurisdiction === nearestKey);
+      const cy = y(nearestKey) + y.bandwidth() / 2;
+
+      hoverLine
+        .attr("y1", cy)
+        .attr("y2", cy)
+        .style("opacity", 1);
+
+      tooltip.show(event,
+        `${d.jurisdiction}: <b>${valueFmtRate(d.rate)}</b> fines / 10,000 licences`);
+    })
+    .on("mouseleave", () => {
+      hoverLine.style("opacity", 0);
+      tooltip.hide();
+    });
+}
+
 // ---------- Init ----------
 document.addEventListener("DOMContentLoaded", () => {
   d3.csv("../data/q1.csv").then(drawQ1);
@@ -683,4 +811,5 @@ document.addEventListener("DOMContentLoaded", () => {
   d3.csv("../data/q3.csv").then(drawQ3);
   d3.csv("../data/q4.csv").then(drawQ4);
   d3.csv("../data/q5.csv").then(drawQ5);
+  d3.csv("../data/q6.csv").then(drawQ6);
 });
